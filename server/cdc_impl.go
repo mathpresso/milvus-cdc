@@ -655,7 +655,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		taskLog.Warn("fail to new the data handler", zap.Error(err))
 		return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 	}
-	writerObj := cdcwriter.NewChannelWriter(dataHandler, config.WriterConfig{
+	writerObj = cdcwriter.NewChannelWriter(dataHandler, targetConfig.TargetDBType, config.WriterConfig{
 		MessageBufferSize: bufferSize,
 		Retry:             e.config.Retry,
 	}, metaOp.GetAllDroppedObj())
