@@ -328,6 +328,36 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		return servererror.NewClientError("the rpc channel name is empty")
 	}
 
+	if strings.ToLower(connectParam.TargetDBType) == "milvus" {
+		_, err := cdcwriter.NewMilvusDataHandler(
+			cdcwriter.MilvusAddressOption(fmt.Sprintf("%s:%d", connectParam.Host, connectParam.Port)),
+			cdcwriter.MilvusUserOption(connectParam.Username, connectParam.Password),
+			cdcwriter.MilvusTLSOption(connectParam.EnableTLS),
+			cdcwriter.MilvusIgnorePartitionOption(connectParam.IgnorePartition),
+			cdcwriter.MilvusConnectTimeoutOption(connectParam.ConnectTimeout))
+		if err != nil {
+			log.Warn("fail to connect the milvus", zap.Any("connect_param", connectParam), zap.Error(err))
+			return errors.WithMessage(err, "fail to connect the milvus")
+		}
+	} else if strings.ToLower(connectParam.TargetDBType) == "bigquery" {
+		_, err := cdcwriter.NewBigQueryDataHandler(
+			cdcwriter.ProjectOption(connectParam.ProjectId),
+			cdcwriter.BigQueryConnectTimeoutOption(connectParam.ConnectTimeout))
+		if err != nil {
+			log.Warn("fail to connect the bigquery", zap.Any("connect_param", connectParam), zap.Error(err))
+			return errors.WithMessage(err, "fail to connect the bigquery")
+		}
+	} else if strings.ToLower(connectParam.TargetDBType) == "mysql" {
+		_, err := cdcwriter.NewMySQLDataHandler(
+			cdcwriter.MySQLAddressOption(fmt.Sprintf("%s:%d", connectParam.Host, connectParam.Port)),
+			cdcwriter.MySQLUserOption(connectParam.Username, connectParam.Password),
+			cdcwriter.MySQLConnectTimeoutOption(connectParam.ConnectTimeout))
+		if err != nil {
+			log.Warn("fail to connect the mysql", zap.Any("connect_param", connectParam), zap.Error(err))
+			return errors.WithMessage(err, "fail to connect the mysql")
+		}
+	}
+
 	_, err := cdcwriter.NewMilvusDataHandler(
 		cdcwriter.AddressOption(fmt.Sprintf("%s:%d", connectParam.Host, connectParam.Port)),
 		cdcwriter.UserOption(connectParam.Username, connectParam.Password),
@@ -336,6 +366,7 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		cdcwriter.ConnectTimeoutOption(connectParam.ConnectTimeout),
 		cdcwriter.DialConfigOption(connectParam.DialConfig),
 	)
+
 	if err != nil {
 		log.Warn("fail to connect the milvus", zap.Any("connect_param", connectParam), zap.Error(err))
 		return errors.WithMessage(err, "fail to connect the milvus")
@@ -565,6 +596,53 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		return nil, servererror.NewClientError("fail to create replicate channel manager")
 	}
 	targetConfig := milvusConnectParam
+	var writerObj api.Writer
+
+	if strings.ToLower(targetConfig.TargetDBType) == "milvus" {
+		dataHandler, err := cdcwriter.NewMilvusDataHandler(
+			cdcwriter.MilvusAddressOption(fmt.Sprintf("%s:%d", targetConfig.Host, targetConfig.Port)),
+			cdcwriter.MilvusUserOption(targetConfig.Username, targetConfig.Password),
+			cdcwriter.MilvusTLSOption(targetConfig.EnableTLS),
+			cdcwriter.MilvusIgnorePartitionOption(targetConfig.IgnorePartition),
+			cdcwriter.MilvusConnectTimeoutOption(targetConfig.ConnectTimeout))
+
+		if err != nil {
+			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+		}
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+			MessageBufferSize: bufferSize,
+			Retry:             e.config.Retry,
+		}, metaOp.GetAllDroppedObj())
+	} else if strings.ToLower(targetConfig.TargetDBType) == "bigquery" {
+		dataHandler, err := cdcwriter.NewBigQueryDataHandler(
+			cdcwriter.ProjectOption(targetConfig.ProjectId),
+			cdcwriter.BigQueryConnectTimeoutOption(targetConfig.ConnectTimeout))
+
+		if err != nil {
+			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+		}
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+			MessageBufferSize: bufferSize,
+			Retry:             e.config.Retry,
+		}, metaOp.GetAllDroppedObj())
+	} else if strings.ToLower(targetConfig.TargetDBType) == "mysql" {
+		dataHandler, err := cdcwriter.NewMySQLDataHandler(
+			cdcwriter.MySQLAddressOption(fmt.Sprintf("%s:%d", targetConfig.Host, targetConfig.Port)),
+			cdcwriter.MySQLUserOption(targetConfig.Username, targetConfig.Password),
+			cdcwriter.MySQLConnectTimeoutOption(targetConfig.ConnectTimeout))
+
+		if err != nil {
+			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+		}
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+			MessageBufferSize: bufferSize,
+			Retry:             e.config.Retry,
+		}, metaOp.GetAllDroppedObj())
+	}
+
 	dataHandler, err := cdcwriter.NewMilvusDataHandler(
 		cdcwriter.AddressOption(fmt.Sprintf("%s:%d", targetConfig.Host, targetConfig.Port)),
 		cdcwriter.UserOption(targetConfig.Username, targetConfig.Password),

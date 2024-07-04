@@ -61,3 +61,71 @@ func DialConfigOption(dialConfig util.DialConfig) config.Option[*MilvusDataHandl
 		object.dialConfig = dialConfig
 	})
 }
+
+func MilvusAddressOption(address string) config.Option[*MilvusDataHandler] {
+	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		object.address = address
+	})
+}
+
+func MilvusUserOption(username string, password string) config.Option[*MilvusDataHandler] {
+	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		object.username = username
+		object.password = password
+	})
+}
+
+func MilvusTLSOption(enable bool) config.Option[*MilvusDataHandler] {
+	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		object.enableTLS = enable
+	})
+}
+
+func MilvusConnectTimeoutOption(timeout int) config.Option[*MilvusDataHandler] {
+	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		if timeout > 0 {
+			object.connectTimeout = timeout
+		}
+	})
+}
+
+func MilvusIgnorePartitionOption(ignore bool) config.Option[*MilvusDataHandler] {
+	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		object.ignorePartition = ignore
+	})
+}
+
+func MySQLAddressOption(address string) config.Option[*MySQLDataHandler] {
+	return config.OptionFunc[*MySQLDataHandler](func(object *MySQLDataHandler) {
+		object.address = address
+	})
+}
+
+func MySQLUserOption(username string, password string) config.Option[*MySQLDataHandler] {
+	return config.OptionFunc[*MySQLDataHandler](func(object *MySQLDataHandler) {
+		object.username = username
+		object.password = password
+	})
+}
+
+func MySQLConnectTimeoutOption(timeout int) config.Option[*MySQLDataHandler] {
+	return config.OptionFunc[*MySQLDataHandler](func(object *MySQLDataHandler) {
+		if timeout > 0 {
+			object.connectTimeout = timeout
+		}
+	})
+}
+
+func ProjectOption(projectID string) config.Option[*BigQueryDataHandler] {
+	return config.OptionFunc[*BigQueryDataHandler](func(object *BigQueryDataHandler) {
+		object.projectID = projectID
+	})
+}
+
+func BigQueryConnectTimeoutOption(timeout int) config.Option[*BigQueryDataHandler] {
+	return config.OptionFunc[*BigQueryDataHandler](func(object *BigQueryDataHandler) {
+		if timeout > 0 {
+			object.connectTimeout = timeout
+		}
+	})
+}

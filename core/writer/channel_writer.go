@@ -56,9 +56,11 @@ type ChannelWriter struct {
 	partitionInfos  util.Map[string, uint64]
 
 	retryOptions []retry.Option
+	targetDBType string
 }
 
 func NewChannelWriter(dataHandler api.DataHandler,
+	targetDBType string,
 	writerConfig config.WriterConfig,
 	droppedObjs map[string]map[string]uint64,
 ) api.Writer {
@@ -66,6 +68,7 @@ func NewChannelWriter(dataHandler api.DataHandler,
 		dataHandler:    dataHandler,
 		messageManager: NewReplicateMessageManager(dataHandler, writerConfig.MessageBufferSize),
 		retryOptions:   util.GetRetryOptions(writerConfig.Retry),
+		targetDBType:   targetDBType,
 	}
 	w.initAPIEventFuncs()
 	w.initOPMessageFuncs()
