@@ -64,6 +64,7 @@ func (m *MySQLDataHandler) createDBConnection(ctx context.Context) (*sql.DB, err
 		Passwd:               m.password,
 		Net:                  "tcp",
 		AllowNativePasswords: true,
+		DBName:               "information_schema",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connector: %v", err)
