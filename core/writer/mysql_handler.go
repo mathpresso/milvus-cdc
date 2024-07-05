@@ -59,10 +59,11 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 
 func (m *MySQLDataHandler) createDBConnection(ctx context.Context) (*sql.DB, error) {
 	connector, err := mysql.NewConnector(&mysql.Config{
-		Addr:   m.address,
-		User:   m.username,
-		Passwd: m.password,
-		Net:    "tcp",
+		Addr:                 m.address,
+		User:                 m.username,
+		Passwd:               m.password,
+		Net:                  "tcp",
+		AllowNativePasswords: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connector: %v", err)
