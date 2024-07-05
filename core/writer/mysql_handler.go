@@ -46,10 +46,8 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 	}
 
 	var err error
-	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
-	defer cancel()
 
-	handler.db, err = handler.createDBConnection(timeoutContext)
+	handler.db, err = handler.createDBConnection(handler.connectTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +55,7 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 	return handler, nil
 }
 
-func (m *MySQLDataHandler) createDBConnection(ctx context.Context) (*sql.DB, error) {
+func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, error) {
 	connector, err := mysql.NewConnector(&mysql.Config{
 		Addr:                 m.address,
 		User:                 m.username,
@@ -65,6 +63,7 @@ func (m *MySQLDataHandler) createDBConnection(ctx context.Context) (*sql.DB, err
 		Net:                  "tcp",
 		AllowNativePasswords: true,
 		DBName:               "information_schema",
+		Timeout:              time.Duration(connectionTimeout) * time.Second,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connector: %v", err)
@@ -72,8 +71,8 @@ func (m *MySQLDataHandler) createDBConnection(ctx context.Context) (*sql.DB, err
 
 	db := sql.OpenDB(connector)
 
-	if err := db.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database with dbconn: %v", err)
 	}
 
 	return db, nil
