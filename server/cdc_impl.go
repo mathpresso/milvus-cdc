@@ -359,11 +359,6 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		}
 	}
 
-	if err != nil {
-		log.Warn("fail to connect the ", zap.String("targetDBType", connectParam.TargetDBType), zap.Any("connect_param", connectParam), zap.Error(err))
-		return errors.WithMessage(err, "fail to connect the "+connectParam.TargetDBType)
-	}
-
 	return nil
 }
 
@@ -600,7 +595,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			cdcwriter.MilvusConnectTimeoutOption(targetConfig.ConnectTimeout))
 
 		if err != nil {
-			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			taskLog.Warn("fail to new the milvus data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
 		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
@@ -613,7 +608,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			cdcwriter.BigQueryConnectTimeoutOption(targetConfig.ConnectTimeout))
 
 		if err != nil {
-			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			taskLog.Warn("fail to new the bigquery data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
 		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
@@ -627,18 +622,13 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			cdcwriter.MySQLConnectTimeoutOption(targetConfig.ConnectTimeout))
 
 		if err != nil {
-			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			taskLog.Warn("fail to new the mysql data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
 		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
 			MessageBufferSize: bufferSize,
 			Retry:             e.config.Retry,
 		}, metaOp.GetAllDroppedObj())
-	}
-
-	if err != nil {
-		taskLog.Warn("fail to new the data handler", zap.Error(err))
-		return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 	}
 
 	e.replicateEntityMap.Lock()
