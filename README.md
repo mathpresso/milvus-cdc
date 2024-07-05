@@ -9,7 +9,7 @@ CDC is "Change Data Capture", and Milvus-CDC is a change data capture tool for M
 
 You can download the executable files in the [release page](https://github.com/zilliztech/milvus-cdc/releases) or compile the source code to get the cdc tool.
 
-- how to compile source code?
+- how to compile source code? 
 
 ```bash
 git clone https://github.com/zilliztech/milvus-cdc.git
