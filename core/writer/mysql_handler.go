@@ -72,7 +72,7 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 	db := sql.OpenDB(connector)
 
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database with dbconn: %v", err)
+		return nil, fmt.Errorf("failed to ping mysql database : %v", err)
 	}
 
 	return db, nil
@@ -119,6 +119,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 
 func (m *MySQLDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", param.CollectionName, param.Column.Name)
+	log.Info(query)
 	return m.mysqlOp(ctx, query, param.Column.FieldData())
 }
 
@@ -135,11 +136,13 @@ func (m *MySQLDataHandler) DropPartition(ctx context.Context, param *api.DropPar
 func (m *MySQLDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
 	query := fmt.Sprintf("CREATE INDEX %s ON %s (%s)",
 		param.GetIndexName(), param.GetCollectionName(), param.GetFieldName())
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
 	query := fmt.Sprintf("DROP INDEX %s ON %s", param.IndexName, param.CollectionName)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
@@ -169,11 +172,13 @@ func (m *MySQLDataHandler) Flush(ctx context.Context, param *api.FlushParam) err
 
 func (m *MySQLDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
 	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", param.DbName)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", param.DbName)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
@@ -183,6 +188,8 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 		err   error
 		opErr error
 	)
+	log.Info("ReplicateMessage", zap.Any("param", param))
+
 	opErr = m.mysqlOp(ctx, "", func(mysqlCli client.Client) error {
 		resp, err = mysqlCli.ReplicateMessage(ctx, param.ChannelName,
 			param.BeginTs, param.EndTs,
@@ -203,11 +210,13 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 
 func (m *MySQLDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
 	query := fmt.Sprintf("DESCRIBE %s", param.Name)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DescribeDatabase(ctx context.Context, param *api.DescribeDatabaseParam) error {
 	query := "SHOW DATABASES"
+	log.Info(query)
 	rows, err := m.db.QueryContext(ctx, query)
 	if err != nil {
 		return err
