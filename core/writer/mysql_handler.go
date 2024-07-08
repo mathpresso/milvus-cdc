@@ -43,6 +43,8 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 	}
 	if handler.address == "" {
 		return nil, errors.New("empty MySQL address")
+	} else {
+		log.Info("MySQL address", zap.String("address", handler.address))
 	}
 
 	var err error
