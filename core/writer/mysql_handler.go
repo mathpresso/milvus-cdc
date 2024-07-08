@@ -43,8 +43,6 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 	}
 	if handler.address == "" {
 		return nil, errors.New("empty MySQL address")
-	} else {
-		log.Info("MySQL address", zap.String("address", handler.address))
 	}
 
 	var err error
@@ -72,14 +70,6 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 	}
 
 	db := sql.OpenDB(connector)
-	if err := db.QueryRow("use information_schema"); err != nil {
-		return nil, fmt.Errorf("failed to use mysql selected database : %v", err)
-
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping mysql database : %v", err)
-	}
 
 	return db, nil
 }
