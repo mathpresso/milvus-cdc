@@ -112,7 +112,7 @@ func GetDropInfoKey(key string) string {
 
 func GetCollectionInfoKeys(collectionName, dbName string) (string, string) {
 	if dbName == "" {
-		dbName = DefaultDbName
+		dbName = DefaultMilvusDbName
 	}
 	key := fmt.Sprintf("%s_%s", dbName, collectionName)
 	return GetCreateInfoKey(key), GetDropInfoKey(key)
@@ -120,7 +120,7 @@ func GetCollectionInfoKeys(collectionName, dbName string) (string, string) {
 
 func GetPartitionInfoKeys(partitionName, collectionName, dbName string) (string, string) {
 	if dbName == "" {
-		dbName = DefaultDbName
+		dbName = DefaultMilvusDbName
 	}
 	key := fmt.Sprintf("%s_%s_%s", dbName, collectionName, partitionName)
 	return GetCreateInfoKey(key), GetDropInfoKey(key)
@@ -128,7 +128,7 @@ func GetPartitionInfoKeys(partitionName, collectionName, dbName string) (string,
 
 func GetDBInfoKeys(dbName string) (string, string) {
 	if dbName == "" {
-		dbName = DefaultDbName
+		dbName = DefaultMilvusDbName
 	}
 	return GetCreateInfoKey(dbName), GetDropInfoKey(dbName)
 }

@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -37,29 +36,10 @@ import (
 const (
 	MilvusClientResourceTyp = "milvus_client"
 	MilvusClientExpireTime  = 30 * time.Second
-	DefaultDbName           = "default"
+	DefaultMilvusDbName     = "default"
 )
 
-var (
-	clientManager     *MilvusClientResourceManager
-	clientManagerOnce sync.Once
-)
-
-type MilvusClientResourceManager struct {
-	manager resource.Manager
-}
-
-func GetMilvusClientManager() *MilvusClientResourceManager {
-	clientManagerOnce.Do(func() {
-		manager := resource.NewManager(0, 0, nil)
-		clientManager = &MilvusClientResourceManager{
-			manager: manager,
-		}
-	})
-	return clientManager
-}
-
-func (m *MilvusClientResourceManager) newMilvusClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) resource.NewResourceFunc {
+func (m *ClientResourceManager) newMilvusClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
 		dialOptions, err := GetDialOptions(dialConfig)
 		if err != nil {
@@ -89,9 +69,9 @@ func (m *MilvusClientResourceManager) newMilvusClient(ctx context.Context, addre
 	}
 }
 
-func (m *MilvusClientResourceManager) GetMilvusClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) (client.Client, error) {
+func (m *ClientResourceManager) GetMilvusClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) (client.Client, error) {
 	if database == "" {
-		database = DefaultDbName
+		database = DefaultMilvusDbName
 	}
 	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("address", address))
 	res, err := m.manager.Get(MilvusClientResourceTyp,
@@ -110,8 +90,4 @@ func (m *MilvusClientResourceManager) GetMilvusClient(ctx context.Context, addre
 
 func getMilvusClientResourceName(address, database string) string {
 	return fmt.Sprintf("%s:%s", address, database)
-}
-
-func GetAPIKey(username, password string) string {
-	return fmt.Sprintf("%s:%s", username, password)
 }

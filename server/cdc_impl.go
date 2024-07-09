@@ -534,20 +534,20 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 
 	ctx := context.TODO()
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(milvusConnectParam.ConnectTimeout)*time.Second)
-	if strings.ToLower(milvusConnectParam.TargetDBType) == "milvus" {
-		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
-			Address:    milvusAddress,
-			Username:   milvusConnectParam.Username,
-			Password:   milvusConnectParam.Password,
-			EnableTLS:  milvusConnectParam.EnableTLS,
-			DialConfig: milvusConnectParam.DialConfig,
-		})
-		cancelFunc()
 
-		if err != nil {
-			taskLog.Warn("fail to new target", zap.String("address", milvusAddress), zap.Error(err))
-			return nil, servererror.NewClientError("fail to connect target milvus server")
-		}
+	milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+		Address:    milvusAddress,
+		Username:   milvusConnectParam.Username,
+		Password:   milvusConnectParam.Password,
+		EnableTLS:  milvusConnectParam.EnableTLS,
+		DialConfig: milvusConnectParam.DialConfig,
+		ProjectId:  milvusConnectParam.ProjectId,
+	})
+	cancelFunc()
+
+	if err != nil {
+		taskLog.Warn("fail to new target", zap.String("address", milvusAddress), zap.Error(err))
+		return nil, servererror.NewClientError("fail to connect target milvus server")
 	}
 
 	sourceConfig := e.config.SourceConfig

@@ -19,7 +19,11 @@
 package reader
 
 import (
+	"cloud.google.com/go/bigquery"
 	"context"
+	"database/sql"
+	"database/sql/driver"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"go.uber.org/zap"
@@ -35,17 +39,21 @@ import (
 var _ api.TargetAPI = (*TargetClient)(nil)
 
 type TargetClient struct {
-	client client.Client
-	config TargetConfig
+	milvusClient   client.Client
+	config         TargetConfig
+	mysqlClient    driver.Connector
+	bigqueryClient bigquery.Client
 }
 
 type TargetConfig struct {
-	Address    string
-	Username   string
-	Password   string
-	APIKey     string
-	EnableTLS  bool
-	DialConfig util.DialConfig
+	TargetDBType string
+	Address      string
+	Username     string
+	Password     string
+	ProjectId    string
+	APIKey       string
+	EnableTLS    bool
+	DialConfig   util.DialConfig
 }
 
 func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) {
@@ -53,11 +61,26 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		config: config,
 	}
 
-	_, err := targetClient.GetMilvus(ctx, "")
-	if err != nil {
-		log.Warn("fail to new target client", zap.String("address", config.Address), zap.Error(err))
-		return nil, err
+	if strings.ToLower(config.TargetDBType) == "milvus" {
+		_, err := targetClient.GetMilvus(ctx, "")
+		if err != nil {
+			log.Warn("fail to new target client", zap.String("address", config.Address), zap.Error(err))
+			return nil, err
+		}
+	} else if strings.ToLower(config.TargetDBType) == "mysql" {
+		_, err := targetClient.GetMySQL(ctx, "")
+		if err != nil {
+			log.Warn("fail to new target client", zap.String("address", config.Address), zap.Error(err))
+			return nil, err
+		}
+	} else if strings.ToLower(config.TargetDBType) == "bigquery" {
+		_, err := targetClient.GetBigQuery(ctx, "")
+		if err != nil {
+			log.Warn("fail to new target client", zap.String("address", config.ProjectId), zap.Error(err))
+			return nil, err
+		}
 	}
+
 	return targetClient, nil
 }
 
@@ -71,6 +94,26 @@ func (t *TargetClient) GetMilvus(ctx context.Context, databaseName string) (clie
 		return nil, err
 	}
 	return milvusClient, nil
+}
+
+func (t *TargetClient) GetMySQL(ctx context.Context, databaseName string) (*sql.DB, error) {
+	apiKey := t.config.APIKey
+	if apiKey == "" {
+		apiKey = util.GetAPIKey(t.config.Username, t.config.Password)
+	}
+	mysqlClient, err := util.GetMilvusClientManager().GetMySQLClient(ctx, t.config.Address, apiKey, databaseName, t.config.EnableTLS, t.config.DialConfig)
+	if err != nil {
+		return nil, err
+	}
+	return mysqlClient, nil
+}
+
+func (t *TargetClient) GetBigQuery(ctx context.Context, databaseName string) (*bigquery.Client, error) {
+	bigqueryClient, err := util.GetMilvusClientManager().GetBigQueryClient(ctx, t.config.ProjectId, databaseName)
+	if err != nil {
+		return nil, err
+	}
+	return bigqueryClient, nil
 }
 
 func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
