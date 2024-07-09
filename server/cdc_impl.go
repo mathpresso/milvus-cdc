@@ -529,20 +529,27 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	milvusConnectParam := info.MilvusConnectParam
 	milvusAddress := fmt.Sprintf("%s:%d", milvusConnectParam.Host, milvusConnectParam.Port)
 
+	var milvusClient api.TargetAPI
+	var err error
+
 	ctx := context.TODO()
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(milvusConnectParam.ConnectTimeout)*time.Second)
-	milvusClient, err := cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
-		Address:    milvusAddress,
-		Username:   milvusConnectParam.Username,
-		Password:   milvusConnectParam.Password,
-		EnableTLS:  milvusConnectParam.EnableTLS,
-		DialConfig: milvusConnectParam.DialConfig,
-	})
-	cancelFunc()
-	if err != nil {
-		taskLog.Warn("fail to new target", zap.String("address", milvusAddress), zap.Error(err))
-		return nil, servererror.NewClientError("fail to connect target milvus server")
+	if strings.ToLower(milvusConnectParam.TargetDBType) == "milvus" {
+		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+			Address:    milvusAddress,
+			Username:   milvusConnectParam.Username,
+			Password:   milvusConnectParam.Password,
+			EnableTLS:  milvusConnectParam.EnableTLS,
+			DialConfig: milvusConnectParam.DialConfig,
+		})
+		cancelFunc()
+
+		if err != nil {
+			taskLog.Warn("fail to new target", zap.String("address", milvusAddress), zap.Error(err))
+			return nil, servererror.NewClientError("fail to connect target milvus server")
+		}
 	}
+
 	sourceConfig := e.config.SourceConfig
 	etcdServerConfig := GetEtcdServerConfigFromSourceConfig(sourceConfig)
 	metaOp, err := cdcreader.NewEtcdOp(etcdServerConfig, sourceConfig.DefaultPartitionName, config.EtcdRetryConfig{
