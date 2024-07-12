@@ -154,8 +154,8 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 		} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
 			channelName = append(channelName, "bigquery")
 		}
-		collection.PhysicalChannels = channelName
-		collection.VirtualChannels = channelName
+		//		collection.PhysicalChannels = channelName
+		//		collection.VirtualChannels = channelName
 	}
 
 	collectionInfo.DatabaseName = databaseName
