@@ -279,9 +279,17 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 
 	var successChannels []string
 	var channelHandlers []*replicateChannelHandler
+	toPhysicalChannel := func(vChannel string) string {
+		if strings.ToLower(vChannel) != "mysql" && strings.ToLower(vChannel) != "bigquery" {
+			return funcutil.ToPhysicalChannel(vChannel)
+		}
+
+		return strings.ToLower(vChannel)
+	}
+
 	err = ForeachChannel(info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
-		sourcePChannel := funcutil.ToPhysicalChannel(sourceVChannel)
-		targetPChannel := funcutil.ToPhysicalChannel(targetVChannel)
+		sourcePChannel := toPhysicalChannel(sourceVChannel)
+		targetPChannel := toPhysicalChannel(targetVChannel)
 		channelHandler, err := r.startReadChannel(&model.SourceCollectionInfo{
 			PChannelName: sourcePChannel,
 			VChannelName: sourceVChannel,
@@ -558,11 +566,13 @@ func (r *replicateChannelManager) startReadChannel(sourceInfo *model.SourceColle
 		hasReplicateForTargetChannel := false
 		for _, handler := range r.channelHandlerMap {
 			handler.recordLock.RLock()
-			if handler.targetPChannel == targetInfo.PChannel {
+
+			if handler.targetPChannel == targetInfo.PChannel && (targetInfo.PChannel != "mysql" && targetInfo.PChannel != "bigquery") {
 				hasReplicateForTargetChannel = true
 			}
 			handler.recordLock.RUnlock()
 		}
+
 		if hasReplicateForTargetChannel {
 			channelLog.Info("channel already has replicate for target channel", zap.String("channel_name", sourceInfo.PChannelName))
 			r.waitChannel(sourceInfo, targetInfo, channelHandler)
