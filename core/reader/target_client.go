@@ -257,6 +257,7 @@ func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, data
 				return "", err
 			}
 
+			dbLog.Info("databaseName", zap.String("databaseName", dbName))
 			_, err = dbMySQL.Exec("use " + dbName)
 			if err != nil {
 				dbLog.Warn("fail to command mysql use db", zap.String("connect_db", dbName), zap.Error(err))
@@ -271,6 +272,7 @@ func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, data
 
 			for trows.Next() {
 				err = trows.Scan(&tableName)
+				dbLog.Info("tableName", zap.String("tableName", tableName))
 				if tableName == collectionName {
 					trows.Close()
 					return dbName, nil
