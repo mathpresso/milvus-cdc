@@ -148,14 +148,15 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 
 		collectionInfo.Partitions = tmpCollectionInfo.Partitions
 	} else {
-		var channelName []string
+		collection = &entity.Collection{}
+		var channelName string
 		if strings.ToLower(t.config.TargetDBType) == "mysql" {
-			channelName = append(channelName, "mysql")
+			channelName = "mysql"
 		} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
-			channelName = append(channelName, "bigquery")
+			channelName = "bigquery"
 		}
-		//		collection.PhysicalChannels = channelName
-		//		collection.VirtualChannels = channelName
+		collection.PhysicalChannels = append(collection.PhysicalChannels, channelName)
+		collection.VirtualChannels = append(collection.VirtualChannels, channelName)
 	}
 
 	collectionInfo.DatabaseName = databaseName
