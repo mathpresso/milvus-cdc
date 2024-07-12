@@ -199,7 +199,9 @@ func (t *TargetClient) GetPartitionInfo(ctx context.Context, collectionName, dat
 }
 
 func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, databaseName string) (string, error) {
+	log.Info("GetDatabaseName", zap.String("collectionName", collectionName), zap.String("databaseName", databaseName))
 	if !IsDroppedObject(databaseName) {
+		log.Warn("database name is not dropped", zap.String("databaseName", databaseName))
 		return databaseName, nil
 	}
 	if strings.ToLower(t.config.TargetDBType) == "milvus" {
