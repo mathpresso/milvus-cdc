@@ -165,6 +165,8 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 	collectionInfo.PChannels = collection.PhysicalChannels
 	collectionInfo.VChannels = collection.VirtualChannels
 
+	log.Info("GetCollectionInfo", zap.Any("collectionInfo", collectionInfo))
+
 	return collectionInfo, nil
 }
 
