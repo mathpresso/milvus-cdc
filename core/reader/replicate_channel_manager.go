@@ -676,6 +676,7 @@ func (r *replicateChannelManager) forwardMsg(targetPChannel string, msg *msgstre
 			zap.String("target_pchannel", targetPChannel), zap.Strings("channels", lo.Keys(r.channelHandlerMap)))
 		return
 	}
+
 	handler.forwardPackChan <- msg
 }
 

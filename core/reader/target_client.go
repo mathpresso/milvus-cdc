@@ -23,6 +23,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"github.com/milvus-io/milvus-sdk-go/v2/entity"
+	"google.golang.org/api/iterator"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -122,91 +124,200 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 		log.Warn("fail to get database name", zap.Error(err))
 		return nil, err
 	}
-	milvus, err := t.GetMilvus(ctx, databaseName)
-	if err != nil {
-		log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
-		return nil, err
-	}
 
 	collectionInfo := &model.CollectionInfo{}
-	collection, err := milvus.DescribeCollection(ctx, collectionName)
-	if err != nil {
-		log.Warn("fail to describe collection", zap.Error(err))
-		return nil, err
+	var collection *entity.Collection
+	if strings.ToLower(t.config.TargetDBType) == "milvus" {
+		milvus, err := t.GetMilvus(ctx, databaseName)
+		if err != nil {
+			log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
+			return nil, err
+		}
+
+		collection, err = milvus.DescribeCollection(ctx, collectionName)
+		if err != nil {
+			log.Warn("fail to describe collection", zap.Error(err))
+			return nil, err
+		}
+
+		tmpCollectionInfo, err := t.GetPartitionInfo(ctx, collectionName, databaseName)
+		if err != nil {
+			log.Warn("fail to get partition info", zap.Error(err))
+			return nil, err
+		}
+
+		collectionInfo.Partitions = tmpCollectionInfo.Partitions
+	} else {
+		var channelName string
+		if strings.ToLower(t.config.TargetDBType) == "mysql" {
+			channelName = "mysql"
+		} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
+			channelName = "bigquery"
+		}
+		collection.PhysicalChannels = append(collection.PhysicalChannels, channelName)
+		collection.VirtualChannels = append(collection.VirtualChannels, channelName)
 	}
+
 	collectionInfo.DatabaseName = databaseName
 	collectionInfo.CollectionID = collection.ID
 	collectionInfo.CollectionName = collectionName
 	collectionInfo.PChannels = collection.PhysicalChannels
 	collectionInfo.VChannels = collection.VirtualChannels
 
-	tmpCollectionInfo, err := t.GetPartitionInfo(ctx, collectionName, databaseName)
-	if err != nil {
-		log.Warn("fail to get partition info", zap.Error(err))
-		return nil, err
-	}
-	collectionInfo.Partitions = tmpCollectionInfo.Partitions
 	return collectionInfo, nil
 }
 
 func (t *TargetClient) GetPartitionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
-	databaseName, err := t.GetDatabaseName(ctx, collectionName, databaseName)
-	if err != nil {
-		log.Warn("fail to get database name", zap.Error(err))
-		return nil, err
-	}
-	milvus, err := t.GetMilvus(ctx, databaseName)
-	if err != nil {
-		log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
-		return nil, err
+	if strings.ToLower(t.config.TargetDBType) == "milvus" {
+		databaseName, err := t.GetDatabaseName(ctx, collectionName, databaseName)
+		if err != nil {
+			log.Warn("fail to get database name", zap.Error(err))
+			return nil, err
+		}
+		milvus, err := t.GetMilvus(ctx, databaseName)
+		if err != nil {
+			log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
+			return nil, err
+		}
+
+		collectionInfo := &model.CollectionInfo{}
+		partition, err := milvus.ShowPartitions(ctx, collectionName)
+		if err != nil || len(partition) == 0 {
+			log.Warn("failed to show partitions", zap.Error(err))
+			return nil, errors.New("fail to show the partitions")
+		}
+		partitionInfo := make(map[string]int64, len(partition))
+		for _, e := range partition {
+			partitionInfo[e.Name] = e.ID
+		}
+		collectionInfo.Partitions = partitionInfo
+		return collectionInfo, nil
 	}
 
-	collectionInfo := &model.CollectionInfo{}
-	partition, err := milvus.ShowPartitions(ctx, collectionName)
-	if err != nil || len(partition) == 0 {
-		log.Warn("failed to show partitions", zap.Error(err))
-		return nil, errors.New("fail to show the partitions")
-	}
-	partitionInfo := make(map[string]int64, len(partition))
-	for _, e := range partition {
-		partitionInfo[e.Name] = e.ID
-	}
-	collectionInfo.Partitions = partitionInfo
-	return collectionInfo, nil
+	return nil, nil
 }
 
 func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, databaseName string) (string, error) {
 	if !IsDroppedObject(databaseName) {
 		return databaseName, nil
 	}
-	dbLog := log.With(zap.String("collection", collectionName), zap.String("database", databaseName))
-	milvus, err := t.GetMilvus(ctx, "")
-	if err != nil {
-		dbLog.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
-		return "", err
-	}
-	databaseNames, err := milvus.ListDatabases(ctx)
-	if err != nil {
-		dbLog.Warn("fail to list databases", zap.String("database", databaseName), zap.Error(err))
-		return "", err
-	}
-	for _, dbName := range databaseNames {
-		dbMilvus, err := t.GetMilvus(ctx, dbName.Name)
+	if strings.ToLower(t.config.TargetDBType) == "milvus" {
+		dbLog := log.With(zap.String("collection", collectionName), zap.String("database", databaseName))
+		milvus, err := t.GetMilvus(ctx, "")
 		if err != nil {
-			dbLog.Warn("fail to get milvus client", zap.String("connect_db", dbName.Name), zap.Error(err))
+			dbLog.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
 			return "", err
 		}
-		collections, err := dbMilvus.ListCollections(ctx)
+		databaseNames, err := milvus.ListDatabases(ctx)
 		if err != nil {
-			dbLog.Warn("fail to list collections", zap.String("connect_db", dbName.Name), zap.Error(err))
+			dbLog.Warn("fail to milvus list databases", zap.String("database", databaseName), zap.Error(err))
 			return "", err
 		}
-		for _, collection := range collections {
-			if collection.Name == collectionName {
-				return dbName.Name, nil
+		for _, dbName := range databaseNames {
+			dbMilvus, err := t.GetMilvus(ctx, dbName.Name)
+			if err != nil {
+				dbLog.Warn("fail to get milvus client", zap.String("connect_db", dbName.Name), zap.Error(err))
+				return "", err
+			}
+			collections, err := dbMilvus.ListCollections(ctx)
+			if err != nil {
+				dbLog.Warn("fail to milvus list collections", zap.String("connect_db", dbName.Name), zap.Error(err))
+				return "", err
+			}
+			for _, collection := range collections {
+				if collection.Name == collectionName {
+					return dbName.Name, nil
+				}
+			}
+		}
+		dbLog.Warn("not found the database", zap.Any("databases", databaseNames))
+	} else if strings.ToLower(t.config.TargetDBType) == "mysql" {
+		dbLog := log.With(zap.String("table", collectionName), zap.String("database", databaseName))
+
+		var drows, trows *sql.Rows
+		dbMySQL, err := t.GetMySQL(ctx, "")
+		if err != nil {
+			dbLog.Warn("fail to get mysql client", zap.String("database", databaseName), zap.Error(err))
+			return "", err
+		}
+		drows, err = dbMySQL.Query("show databases")
+		if err != nil {
+			dbLog.Warn("fail to mysql list databases", zap.String("database", databaseName), zap.Error(err))
+			return "", err
+		}
+
+		defer drows.Close()
+
+		var dbName, tableName string
+		for drows.Next() {
+			err = drows.Scan(&dbName)
+			if err != nil {
+				dbLog.Warn("fail to mysql fetch rows", zap.String("connect_db", dbName), zap.Error(err))
+				return "", err
+			}
+
+			_, err = dbMySQL.Exec("use " + dbName)
+			if err != nil {
+				dbLog.Warn("fail to command mysql use db", zap.String("connect_db", dbName), zap.Error(err))
+				return "", err
+			}
+
+			trows, err = dbMySQL.Query("show tables")
+			if err != nil {
+				dbLog.Warn("fail to mysql list tables", zap.String("connect_db", dbName), zap.Error(err))
+				return "", err
+			}
+
+			for trows.Next() {
+				err = trows.Scan(&tableName)
+				if tableName == collectionName {
+					trows.Close()
+					return dbName, nil
+				}
+			}
+
+			trows.Close()
+		}
+		dbLog.Warn("not found the database", zap.Any("databases", databaseName))
+	} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
+		dbLog := log.With(zap.String("table", collectionName), zap.String("database", databaseName))
+
+		dbBigQuery, err := t.GetBigQuery(ctx, "")
+		if err != nil {
+			dbLog.Warn("fail to mysql list tables", zap.String("connect_db", databaseName), zap.Error(err))
+			return "", err
+		}
+
+		// 데이터셋 목록 조회
+		datasets := dbBigQuery.Datasets(ctx)
+		for {
+			dataset, err := datasets.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				dbLog.Warn("failed to list datasets", zap.String("connect_db", dataset.DatasetID), zap.Error(err))
+				return "", err
+			}
+
+			// 각 데이터셋의 테이블 목록 조회
+			tables := dataset.Tables(ctx)
+			for {
+				tableName, err := tables.Next()
+				if tableName.TableID == collectionName {
+					return dataset.DatasetID, nil
+				}
+				if err == iterator.Done {
+					break
+				}
+
+				if err != nil {
+					dbLog.Warn("failed to list tables", zap.String("connect_db", dataset.DatasetID), zap.Error(err))
+					return "", err
+				}
 			}
 		}
 	}
-	dbLog.Warn("not found the database", zap.Any("databases", databaseNames))
+
 	return "", util.NotFoundDatabase
 }
