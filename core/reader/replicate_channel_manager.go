@@ -287,6 +287,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 		return strings.ToLower(vChannel)
 	}
 
+	log.Info("target information", zap.Any("target_info", targetInfo.VChannels), zap.Any("collection_id", info.ID))
 	err = ForeachChannel(info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
 		sourcePChannel := toPhysicalChannel(sourceVChannel)
 		targetPChannel := toPhysicalChannel(targetVChannel)
