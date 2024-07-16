@@ -22,7 +22,7 @@ import "github.com/zilliztech/milvus-cdc/core/util"
 
 //go:generate easytags $GOFILE json,mapstructure
 type MilvusConnectParam struct {
-	TargetDBType    string          `json:"target_db_type" mapstructure:"target_db_type,omitempty"`
+	TargetDBType    string          `json:"target_db_type" mapstructure:"target_db_type"`
 	Host            string          `json:"host" mapstructure:"host"`
 	Port            int             `json:"port" mapstructure:"port"`
 	Username        string          `json:"username,omitempty" mapstructure:"username,omitempty"`
