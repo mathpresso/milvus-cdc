@@ -36,7 +36,7 @@ type ChannelManager interface {
 	AddDroppedCollection(ids []int64)
 	AddDroppedPartition(ids []int64)
 
-	StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error
+	StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error
 	StopReadCollection(ctx context.Context, info *pb.CollectionInfo) error
 	AddPartition(ctx context.Context, collectionInfo *pb.CollectionInfo, partitionInfo *pb.PartitionInfo) error
 
@@ -46,7 +46,7 @@ type ChannelManager interface {
 }
 
 type TargetAPI interface {
-	GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error)
+	GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error)
 	GetPartitionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error)
 	GetDatabaseName(ctx context.Context, collectionName, databaseName string) (string, error)
 }
@@ -102,7 +102,7 @@ func (d *DefaultChannelManager) AddDroppedPartition(ids []int64) {
 	log.Warn("AddDroppedPartition is not implemented, please check it")
 }
 
-func (d *DefaultChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error {
+func (d *DefaultChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error {
 	log.Warn("StartReadCollection is not implemented, please check it")
 	return nil
 }
@@ -136,7 +136,7 @@ type DefaultTargetAPI struct{}
 
 var _ TargetAPI = (*DefaultTargetAPI)(nil)
 
-func (d *DefaultTargetAPI) GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
+func (d *DefaultTargetAPI) GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error) {
 	log.Warn("GetCollectionInfo is not implemented, please check it")
 	return nil, nil
 }

@@ -118,7 +118,7 @@ func (t *TargetClient) GetBigQuery(ctx context.Context, databaseName string) (*b
 	return bigqueryClient, nil
 }
 
-func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
+func (t *TargetClient) GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error) {
 	databaseName, err := t.GetDatabaseName(ctx, collectionName, databaseName)
 	if err != nil {
 		log.Warn("fail to get database name", zap.Error(err))
@@ -127,7 +127,8 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 
 	collectionInfo := &model.CollectionInfo{}
 	var collection *entity.Collection
-	if strings.ToLower(t.config.TargetDBType) == "milvus" {
+
+	if strings.ToLower(targetDBType) == "milvus" {
 		milvus, err := t.GetMilvus(ctx, databaseName)
 		if err != nil {
 			log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
@@ -150,9 +151,9 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 	} else {
 		collection = &entity.Collection{}
 		var channelName string
-		if strings.ToLower(t.config.TargetDBType) == "mysql" {
+		if strings.ToLower(targetDBType) == "mysql" {
 			channelName = "mysql"
-		} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
+		} else if strings.ToLower(targetDBType) == "bigquery" {
 			channelName = "bigquery"
 		}
 		collection.PhysicalChannels = append(collection.PhysicalChannels, channelName)
@@ -171,31 +172,29 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, collectionName, da
 }
 
 func (t *TargetClient) GetPartitionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
-	if strings.ToLower(t.config.TargetDBType) == "milvus" {
-		databaseName, err := t.GetDatabaseName(ctx, collectionName, databaseName)
-		if err != nil {
-			log.Warn("fail to get database name", zap.Error(err))
-			return nil, err
-		}
-		milvus, err := t.GetMilvus(ctx, databaseName)
-		if err != nil {
-			log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
-			return nil, err
-		}
-
-		collectionInfo := &model.CollectionInfo{}
-		partition, err := milvus.ShowPartitions(ctx, collectionName)
-		if err != nil || len(partition) == 0 {
-			log.Warn("failed to show partitions", zap.Error(err))
-			return nil, errors.New("fail to show the partitions")
-		}
-		partitionInfo := make(map[string]int64, len(partition))
-		for _, e := range partition {
-			partitionInfo[e.Name] = e.ID
-		}
-		collectionInfo.Partitions = partitionInfo
-		return collectionInfo, nil
+	databaseName, err := t.GetDatabaseName(ctx, collectionName, databaseName)
+	if err != nil {
+		log.Warn("fail to get database name", zap.Error(err))
+		return nil, err
 	}
+	milvus, err := t.GetMilvus(ctx, databaseName)
+	if err != nil {
+		log.Warn("fail to get milvus client", zap.String("database", databaseName), zap.Error(err))
+		return nil, err
+	}
+
+	collectionInfo := &model.CollectionInfo{}
+	partition, err := milvus.ShowPartitions(ctx, collectionName)
+	if err != nil || len(partition) == 0 {
+		log.Warn("failed to show partitions", zap.Error(err))
+		return nil, errors.New("fail to show the partitions")
+	}
+	partitionInfo := make(map[string]int64, len(partition))
+	for _, e := range partition {
+		partitionInfo[e.Name] = e.ID
+	}
+	collectionInfo.Partitions = partitionInfo
+	return collectionInfo, nil
 
 	return nil, nil
 }

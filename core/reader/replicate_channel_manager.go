@@ -159,7 +159,7 @@ func (r *replicateChannelManager) AddDroppedPartition(ids []int64) {
 	log.Info("has removed dropped partitions", zap.Int64s("ids", ids))
 }
 
-func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error {
+func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error {
 	r.addCollectionLock.Lock()
 	*r.addCollectionCnt++
 	r.addCollectionLock.Unlock()
@@ -174,7 +174,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 
 	var err error
 	retryErr := retry.Do(ctx, func() error {
-		_, err = r.targetClient.GetCollectionInfo(ctx, info.Schema.GetName(), sourceDBInfo.Name)
+		_, err = r.targetClient.GetCollectionInfo(ctx, targetDBType, info.Schema.GetName(), sourceDBInfo.Name)
 		if err != nil &&
 			!IsCollectionNotFoundError(err) && !IsDatabaseNotFoundError(err) {
 			return err
@@ -226,7 +226,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 	var targetInfo *model.CollectionInfo
 
 	err = retry.Do(ctx, func() error {
-		targetInfo, err = r.targetClient.GetCollectionInfo(ctx, info.Schema.Name, sourceDBInfo.Name)
+		targetInfo, err = r.targetClient.GetCollectionInfo(ctx, targetDBType, info.Schema.Name, sourceDBInfo.Name)
 		return err
 	}, r.startReadRetryOptions...)
 	if err != nil {

@@ -467,7 +467,7 @@ func (e *MetaCDC) startInternal(info *meta.TaskInfo, ignoreUpdateState bool) err
 			}
 		}
 	}
-	collectionReader, err := cdcreader.NewCollectionReader(info.TaskID,
+	collectionReader, err := cdcreader.NewCollectionReader(info.TaskID, info.MilvusConnectParam.TargetDBType,
 		replicateEntity.channelManager, replicateEntity.metaOp,
 		channelSeekPosition, GetShouldReadFunc(info),
 		config.ReaderConfig{
@@ -536,12 +536,13 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(milvusConnectParam.ConnectTimeout)*time.Second)
 
 	milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
-		Address:    milvusAddress,
-		Username:   milvusConnectParam.Username,
-		Password:   milvusConnectParam.Password,
-		EnableTLS:  milvusConnectParam.EnableTLS,
-		DialConfig: milvusConnectParam.DialConfig,
-		ProjectId:  milvusConnectParam.ProjectId,
+		Address:      milvusAddress,
+		Username:     milvusConnectParam.Username,
+		Password:     milvusConnectParam.Password,
+		EnableTLS:    milvusConnectParam.EnableTLS,
+		DialConfig:   milvusConnectParam.DialConfig,
+		ProjectId:    milvusConnectParam.ProjectId,
+		TargetDBType: info.MilvusConnectParam.TargetDBType,
 	})
 	cancelFunc()
 
