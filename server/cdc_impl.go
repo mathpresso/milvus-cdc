@@ -551,6 +551,8 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		return nil, servererror.NewClientError("fail to connect target milvus server")
 	}
 
+	taskLog.Info("milvusClient", zap.Any("milvusClient", milvusClient))
+
 	sourceConfig := e.config.SourceConfig
 	etcdServerConfig := GetEtcdServerConfigFromSourceConfig(sourceConfig)
 	metaOp, err := cdcreader.NewEtcdOp(etcdServerConfig, sourceConfig.DefaultPartitionName, config.EtcdRetryConfig{
