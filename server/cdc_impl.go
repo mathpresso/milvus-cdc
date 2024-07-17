@@ -532,13 +532,10 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	milvusConnectParam := info.MilvusConnectParam
 	milvusAddress := fmt.Sprintf("%s:%d", milvusConnectParam.Host, milvusConnectParam.Port)
 
-	var milvusClient api.TargetAPI
-	var err error
-
 	ctx := context.TODO()
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(milvusConnectParam.ConnectTimeout)*time.Second)
 
-	milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+	milvusClient, err := cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
 		Address:      milvusAddress,
 		Username:     milvusConnectParam.Username,
 		Password:     milvusConnectParam.Password,
