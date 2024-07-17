@@ -63,6 +63,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		config: config,
 	}
 
+	log.Info("new target", zap.Any("targetClient", targetClient))
 	if strings.ToLower(config.TargetDBType) == "milvus" {
 		_, err := targetClient.GetMilvus(ctx, "")
 		if err != nil {
@@ -83,7 +84,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		}
 	}
 
-	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", *targetClient))
+	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", targetClient))
 	return targetClient, nil
 }
 
