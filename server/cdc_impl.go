@@ -248,6 +248,9 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 		WriterCacheConfig:     req.BufferConfig,
 		State:                 meta.TaskStateInitial,
 	}
+
+	log.Info("create task", zap.Any("task_info", info))
+
 	if len(req.Positions) != 0 {
 		positions := make(map[string]*meta.PositionInfo, len(req.Positions))
 		for s, s2 := range req.Positions {
