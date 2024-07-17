@@ -555,6 +555,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	}
 
 	taskLog.Info("taskInfo", zap.Any("taskInfo", info))
+	taskLog.Info("target db type", zap.Any("target db type", info.MilvusConnectParam.TargetDBType))
 	taskLog.Info("milvusClient", zap.Any("milvusClient", milvusClient))
 
 	sourceConfig := e.config.SourceConfig
