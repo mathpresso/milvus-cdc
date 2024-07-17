@@ -63,7 +63,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		config: config,
 	}
 
-	log.Info("new target", zap.Any("targetClient", targetClient))
+	log.Info("new target", zap.Any("targetClient", *targetClient))
 	if strings.ToLower(config.TargetDBType) == "milvus" {
 		_, err := targetClient.GetMilvus(ctx, "")
 		if err != nil {
