@@ -83,6 +83,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		}
 	}
 
+	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", config))
 	return targetClient, nil
 }
 
