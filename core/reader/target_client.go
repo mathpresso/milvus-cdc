@@ -63,20 +63,19 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		config: config,
 	}
 
-	log.Info("new target", zap.Any("targetClient", targetClient.config))
-	if strings.ToLower(config.TargetDBType) == "milvus" {
+	if strings.ToLower(targetClient.config.TargetDBType) == "milvus" {
 		_, err := targetClient.GetMilvus(ctx, "")
 		if err != nil {
 			log.Warn("fail to new target client", zap.String("address", config.Address), zap.Error(err))
 			return nil, err
 		}
-	} else if strings.ToLower(config.TargetDBType) == "mysql" {
+	} else if strings.ToLower(targetClient.config.TargetDBType) == "mysql" {
 		_, err := targetClient.GetMySQL(ctx, "")
 		if err != nil {
 			log.Warn("fail to new target client", zap.String("address", config.Address), zap.Error(err))
 			return nil, err
 		}
-	} else if strings.ToLower(config.TargetDBType) == "bigquery" {
+	} else if strings.ToLower(targetClient.config.TargetDBType) == "bigquery" {
 		_, err := targetClient.GetBigQuery(ctx, "")
 		if err != nil {
 			log.Warn("fail to new target client", zap.String("address", config.ProjectId), zap.Error(err))
@@ -84,7 +83,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 		}
 	}
 
-	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", targetClient))
+	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", targetClient.config))
 	return targetClient, nil
 }
 
