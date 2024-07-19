@@ -94,11 +94,13 @@ func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...in
 
 func (m *MySQLDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", param.Schema.CollectionName, param.Schema.Fields)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DropCollection(ctx context.Context, param *api.DropCollectionParam) error {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", param.CollectionName)
+	log.Info(query)
 	return m.mysqlOp(ctx, query)
 }
 
@@ -111,6 +113,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 	}
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		param.CollectionName, join(columns, ","), join(values, ","))
+	log.Info(query)
 	args := make([]interface{}, len(param.Columns))
 	for i, col := range param.Columns {
 		args[i] = col.FieldData()
