@@ -20,6 +20,7 @@ package reader
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"sort"
@@ -287,8 +288,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 		return strings.ToLower(vChannel)
 	}
 
-	log.Info("target information", zap.Any("target_info", targetInfo.VChannels), zap.Any("collection_id", info.ID))
-	err = ForeachChannel(info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
+	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
 		sourcePChannel := toPhysicalChannel(sourceVChannel)
 		targetPChannel := toPhysicalChannel(targetVChannel)
 		channelHandler, err := r.startReadChannel(&model.SourceCollectionInfo{
@@ -344,12 +344,25 @@ func GetVChannelByPChannel(pChannel string, vChannels []string) string {
 	return ""
 }
 
-func ForeachChannel(sourcePChannels, targetPChannels []string, f func(sourcePChannel, targetPChannel string) error) error {
-	if len(sourcePChannels) != len(targetPChannels) {
-		return errors.New("the lengths of source and target channels are not equal")
+func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, f func(sourcePChannel, targetPChannel string) error) error {
+	if targetDBType == "milvus" {
+		if len(sourcePChannels) != len(targetPChannels) {
+			return errors.New("the lengths of source and target channels are not equal")
+		}
 	}
+
 	sources := make([]string, len(sourcePChannels))
-	targets := make([]string, len(targetPChannels))
+	var targets []string
+
+	if targetDBType == "milvus" {
+		targets = make([]string, len(targetPChannels))
+	} else {
+		targets = make([]string, len(sourcePChannels))
+		for i := 0; i < len(sourcePChannels); i++ {
+			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-dml_%d_v0", targetDBType, i))
+		}
+	}
+
 	copy(sources, sourcePChannels)
 	copy(targets, targetPChannels)
 	sort.Strings(sources)
@@ -360,6 +373,7 @@ func ForeachChannel(sourcePChannels, targetPChannels []string, f func(sourcePCha
 			return err
 		}
 	}
+
 	return nil
 }
 

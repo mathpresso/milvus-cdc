@@ -596,6 +596,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		return nil, servererror.NewClientError("fail to create replicate channel manager")
 	}
 	targetConfig := milvusConnectParam
+	var writerObj api.Writer
 
 	if strings.ToLower(targetConfig.TargetDBType) == "milvus" {
 		dataHandler, err := cdcwriter.NewMilvusDataHandler(
@@ -609,31 +610,10 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			taskLog.Warn("fail to new the milvus data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
-		writerObj := cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
 			MessageBufferSize: bufferSize,
 			Retry:             e.config.Retry,
 		}, metaOp.GetAllDroppedObj())
-
-		e.replicateEntityMap.Lock()
-		defer e.replicateEntityMap.Unlock()
-		entity, ok := e.replicateEntityMap.data[milvusAddress]
-		if !ok {
-			replicateCtx, cancelReplicateFunc := context.WithCancel(ctx)
-			channelManager.SetCtx(replicateCtx)
-			entity = &ReplicateEntity{
-				targetClient:   milvusClient,
-				channelManager: channelManager,
-				metaOp:         metaOp,
-				writerObj:      writerObj,
-				quitFunc:       cancelReplicateFunc,
-				mqDispatcher:   msgDispatcherClient,
-				mqTTDispatcher: msgTTDispatcherClient,
-			}
-			e.replicateEntityMap.data[milvusAddress] = entity
-			e.startReplicateAPIEvent(replicateCtx, info, entity)
-			e.startReplicateDMLChannel(replicateCtx, info, entity)
-		}
-		return entity, nil
 	} else if strings.ToLower(targetConfig.TargetDBType) == "bigquery" {
 		dataHandler, err := cdcwriter.NewBigQueryDataHandler(
 			cdcwriter.ProjectOption(targetConfig.ProjectId),
@@ -643,31 +623,10 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			taskLog.Warn("fail to new the bigquery data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
-		writerObj := cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
 			MessageBufferSize: bufferSize,
 			Retry:             e.config.Retry,
 		}, metaOp.GetAllDroppedObj())
-
-		e.replicateEntityMap.Lock()
-		defer e.replicateEntityMap.Unlock()
-		entity, ok := e.replicateEntityMap.data[milvusAddress]
-		if !ok {
-			replicateCtx, cancelReplicateFunc := context.WithCancel(ctx)
-			channelManager.SetCtx(replicateCtx)
-			entity = &ReplicateEntity{
-				targetClient:   milvusClient,
-				channelManager: channelManager,
-				metaOp:         metaOp,
-				writerObj:      writerObj,
-				quitFunc:       cancelReplicateFunc,
-				mqDispatcher:   msgDispatcherClient,
-				mqTTDispatcher: msgTTDispatcherClient,
-			}
-			e.replicateEntityMap.data[milvusAddress] = entity
-			e.startReplicateAPIEvent(replicateCtx, info, entity)
-			e.startReplicateDMLChannel(replicateCtx, info, entity)
-		}
-		return entity, nil
 	} else if strings.ToLower(targetConfig.TargetDBType) == "mysql" {
 		dataHandler, err := cdcwriter.NewMySQLDataHandler(
 			cdcwriter.MySQLAddressOption(fmt.Sprintf("%s:%d", targetConfig.Host, targetConfig.Port)),
@@ -678,34 +637,32 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			taskLog.Warn("fail to new the mysql data handler", zap.Error(err))
 			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
 		}
-		writerObj := cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, strings.ToLower(targetConfig.TargetDBType), config.WriterConfig{
 			MessageBufferSize: bufferSize,
 			Retry:             e.config.Retry,
 		}, metaOp.GetAllDroppedObj())
-
-		e.replicateEntityMap.Lock()
-		defer e.replicateEntityMap.Unlock()
-		entity, ok := e.replicateEntityMap.data[milvusAddress]
-		if !ok {
-			replicateCtx, cancelReplicateFunc := context.WithCancel(ctx)
-			channelManager.SetCtx(replicateCtx)
-			entity = &ReplicateEntity{
-				targetClient:   milvusClient,
-				channelManager: channelManager,
-				metaOp:         metaOp,
-				writerObj:      writerObj,
-				quitFunc:       cancelReplicateFunc,
-				mqDispatcher:   msgDispatcherClient,
-				mqTTDispatcher: msgTTDispatcherClient,
-			}
-			e.replicateEntityMap.data[milvusAddress] = entity
-			e.startReplicateAPIEvent(replicateCtx, info, entity)
-			e.startReplicateDMLChannel(replicateCtx, info, entity)
-		}
-		return entity, nil
 	}
 
-	return nil, nil
+	e.replicateEntityMap.Lock()
+	defer e.replicateEntityMap.Unlock()
+	entity, ok := e.replicateEntityMap.data[milvusAddress]
+	if !ok {
+		replicateCtx, cancelReplicateFunc := context.WithCancel(ctx)
+		channelManager.SetCtx(replicateCtx)
+		entity = &ReplicateEntity{
+			targetClient:   milvusClient,
+			channelManager: channelManager,
+			metaOp:         metaOp,
+			writerObj:      writerObj,
+			quitFunc:       cancelReplicateFunc,
+			mqDispatcher:   msgDispatcherClient,
+			mqTTDispatcher: msgTTDispatcherClient,
+		}
+		e.replicateEntityMap.data[milvusAddress] = entity
+		e.startReplicateAPIEvent(replicateCtx, info, entity)
+		e.startReplicateDMLChannel(replicateCtx, info, entity)
+	}
+	return entity, nil
 }
 
 func (e *MetaCDC) startReplicateAPIEvent(replicateCtx context.Context, info *meta.TaskInfo, entity *ReplicateEntity) {
