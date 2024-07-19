@@ -80,6 +80,7 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 
 func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...interface{}) error {
 	retryFunc := func() error {
+		log.Info("executing mysql operation", zap.String("query", query), zap.Any("args", args))
 		_, err := m.db.ExecContext(ctx, query, args...)
 		return err
 	}
