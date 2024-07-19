@@ -94,13 +94,13 @@ func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...in
 
 func (m *MySQLDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", param.Schema.CollectionName, param.Schema.Fields)
-	log.Info(query)
+	log.Info("CREATE TABLE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DropCollection(ctx context.Context, param *api.DropCollectionParam) error {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", param.CollectionName)
-	log.Info(query)
+	log.Info("DROP TABLE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
@@ -113,7 +113,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 	}
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
 		param.CollectionName, join(columns, ","), join(values, ","))
-	log.Info(query)
+	log.Info("INSERT", zap.String("query", query))
 	args := make([]interface{}, len(param.Columns))
 	for i, col := range param.Columns {
 		args[i] = col.FieldData()
@@ -123,7 +123,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 
 func (m *MySQLDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", param.CollectionName, param.Column.Name)
-	log.Info(query)
+	log.Info("DELETE", zap.String("query", query))
 	return m.mysqlOp(ctx, query, param.Column.FieldData())
 }
 
@@ -140,7 +140,7 @@ func (m *MySQLDataHandler) DropPartition(ctx context.Context, param *api.DropPar
 func (m *MySQLDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
 	query := fmt.Sprintf("CREATE INDEX %s ON %s (%s)",
 		param.GetIndexName(), param.GetCollectionName(), param.GetFieldName())
-	log.Info(query)
+	log.Info("CREATE INDEX", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
@@ -176,13 +176,13 @@ func (m *MySQLDataHandler) Flush(ctx context.Context, param *api.FlushParam) err
 
 func (m *MySQLDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
 	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", param.DbName)
-	log.Info(query)
+	log.Info("CREATE DATABASE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
 func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", param.DbName)
-	log.Info(query)
+	log.Info("DROP DATABASE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
@@ -214,7 +214,7 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 
 func (m *MySQLDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
 	query := fmt.Sprintf("DESCRIBE %s", param.Name)
-	log.Info(query)
+	log.Info("DESCRIBE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 
