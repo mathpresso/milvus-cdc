@@ -556,6 +556,7 @@ func (r *replicateChannelManager) startReadChannel(sourceInfo *model.SourceColle
 
 	// TODO how to handle the seek position when the pchannel has been replicated
 	channelHandler, ok := r.channelHandlerMap[sourceInfo.PChannelName]
+	log.Info("channel handler", zap.Any("handler", channelHandler), zap.Bool("ok", ok))
 	if !ok {
 		var err error
 		channelHandler, err = initReplicateChannelHandler(r.getCtx(),
@@ -582,7 +583,8 @@ func (r *replicateChannelManager) startReadChannel(sourceInfo *model.SourceColle
 		for _, handler := range r.channelHandlerMap {
 			handler.recordLock.RLock()
 
-			if handler.targetPChannel == targetInfo.PChannel && (targetInfo.PChannel != "mysql" && targetInfo.PChannel != "bigquery") {
+			// targetInfo.CollectionID == 0 은 target db가 milvus가 아니다.
+			if handler.targetPChannel == targetInfo.PChannel && targetInfo.CollectionID != 0 {
 				hasReplicateForTargetChannel = true
 			}
 			handler.recordLock.RUnlock()
