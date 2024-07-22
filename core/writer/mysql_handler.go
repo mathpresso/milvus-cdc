@@ -146,7 +146,7 @@ func (m *MySQLDataHandler) CreateIndex(ctx context.Context, param *api.CreateInd
 
 func (m *MySQLDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
 	query := fmt.Sprintf("DROP INDEX %s ON %s", param.IndexName, param.CollectionName)
-	log.Info(query)
+	log.Info("DROP INDEX", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
 

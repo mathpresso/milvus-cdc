@@ -130,6 +130,8 @@ func (m *MilvusDataHandler) Insert(ctx context.Context, param *api.InsertParam) 
 		log.Info("ignore partition name in insert request", zap.String("partition", partitionName))
 		partitionName = ""
 	}
+
+	log.Info("insert request", zap.String("collection", param.CollectionName), zap.String("partition", partitionName), zap.Any("columns", param.Columns))
 	return m.milvusOp(ctx, param.Database, func(milvus client.Client) error {
 		_, err := milvus.Insert(ctx, param.CollectionName, partitionName, param.Columns...)
 		return err

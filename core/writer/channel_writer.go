@@ -151,6 +151,7 @@ func (c *ChannelWriter) HandleReplicateMessage(ctx context.Context, channelName 
 		}
 		if msg.Type() == commonpb.MsgType_Insert {
 			insertMsg := msg.(*msgstream.InsertMsg)
+
 			logFields = append(logFields,
 				zap.String("collection", insertMsg.GetCollectionName()),
 				zap.String("partition", insertMsg.GetPartitionName()),
