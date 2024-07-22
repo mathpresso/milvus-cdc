@@ -20,6 +20,7 @@ package writer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -29,6 +30,7 @@ import (
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"github.com/milvus-io/milvus/pkg/util/retry"
 
+	"encoding/json"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
@@ -263,29 +265,34 @@ func (m *MilvusDataHandler) DropDatabase(ctx context.Context, param *api.DropDat
 
 func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
 	var (
-	//	resp *entity.MessageInfo
-	//	err   error
-	//	opErr error
+		resp  *entity.MessageInfo
+		err   error
+		opErr error
 	)
 
-	/*
-		opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
-			resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
-				param.BeginTs, param.EndTs,
-				param.MsgsBytes,
-				param.StartPositions, param.EndPositions,
-				client.WithReplicateMessageMsgBase(param.Base))
-			return err
-		})
-		if err != nil {
-			return err
+	for _, msgBytes := range param.MsgsBytes {
+		var record map[string]interface{}
+		if err := json.Unmarshal(msgBytes, &record); err != nil {
+			return fmt.Errorf("failed to decode msgsBytes: %v", err)
 		}
-		if opErr != nil {
-			return opErr
-		}
+		log.Info("msgBytes", zap.Any("msgBytes", record))
+	}
 
-	*/
-	//param.TargetMsgPosition = resp.Position
+	opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
+		resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
+			param.BeginTs, param.EndTs,
+			param.MsgsBytes,
+			param.StartPositions, param.EndPositions,
+			client.WithReplicateMessageMsgBase(param.Base))
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if opErr != nil {
+		return opErr
+	}
+	param.TargetMsgPosition = resp.Position
 	return nil
 }
 
