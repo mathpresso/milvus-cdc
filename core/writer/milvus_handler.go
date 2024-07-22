@@ -267,6 +267,8 @@ func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.Rep
 		err   error
 		opErr error
 	)
+
+	log.Info("replicate message", zap.String("channel", param.ChannelName), zap.Any("base", param.Base), zap.Any("msgs", param.MsgsBytes), zap.Any("WithReplicateMessageMsgBase", client.WithReplicateMessageMsgBase(param.Base)))
 	opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
 		resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
 			param.BeginTs, param.EndTs,
