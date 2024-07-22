@@ -263,9 +263,9 @@ func (m *MilvusDataHandler) DropDatabase(ctx context.Context, param *api.DropDat
 
 func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
 	var (
-		resp *entity.MessageInfo
-		//	err   error
-		//	opErr error
+	//	resp *entity.MessageInfo
+	//	err   error
+	//	opErr error
 	)
 
 	/*
@@ -285,7 +285,7 @@ func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.Rep
 		}
 
 	*/
-	param.TargetMsgPosition = resp.Position
+	//param.TargetMsgPosition = resp.Position
 	return nil
 }
 
