@@ -263,26 +263,28 @@ func (m *MilvusDataHandler) DropDatabase(ctx context.Context, param *api.DropDat
 
 func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
 	var (
-		resp  *entity.MessageInfo
-		err   error
-		opErr error
+		resp *entity.MessageInfo
+		//	err   error
+		//	opErr error
 	)
 
-	log.Info("replicate message", zap.String("channel", param.ChannelName), zap.Any("base", param.Base), zap.Any("msgs", param.MsgsBytes), zap.Any("WithReplicateMessageMsgBase", client.WithReplicateMessageMsgBase(param.Base)))
-	opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
-		resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
-			param.BeginTs, param.EndTs,
-			param.MsgsBytes,
-			param.StartPositions, param.EndPositions,
-			client.WithReplicateMessageMsgBase(param.Base))
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	if opErr != nil {
-		return opErr
-	}
+	/*
+		opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
+			resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
+				param.BeginTs, param.EndTs,
+				param.MsgsBytes,
+				param.StartPositions, param.EndPositions,
+				client.WithReplicateMessageMsgBase(param.Base))
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		if opErr != nil {
+			return opErr
+		}
+
+	*/
 	param.TargetMsgPosition = resp.Position
 	return nil
 }
