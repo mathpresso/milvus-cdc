@@ -195,10 +195,20 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 	case commonpb.MsgType_Insert:
 		insertMsg := &msgstream.InsertMsg{}
 		err = proto.Unmarshal(msgBytes, insertMsg)
+		if err != nil {
+			log.Warn("failed to unmarshal insert msg", zap.Error(err))
+			return err
+		}
 
 		msg, err := convertInsertMsgToInsertParam(insertMsg)
+		if err != nil {
+			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
+			return err
+		}
+
 		err = m.Insert(ctx, msg)
 		if err != nil {
+			log.Warn("failed to unmarshal insert msg", zap.Error(err))
 			return err
 		}
 	case commonpb.MsgType_Delete:
@@ -207,10 +217,12 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 
 		msg, err := convertDeleteMsgToDeleteParam(deleteMsg)
 		if err != nil {
+			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
 			return err
 		}
 		err = m.Delete(ctx, msg)
 		if err != nil {
+			log.Warn("failed to delete", zap.Error(err))
 			return err
 		}
 	case commonpb.MsgType_Upsert:
@@ -222,12 +234,19 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 		half := len(msgBytes) / 2
 		err = proto.Unmarshal(msgBytes[:half], insertMsg)
 		if err != nil {
+			log.Warn("failed to unmarshal insert msg", zap.Error(err))
 			return err
 		}
 
 		imsg, err := convertInsertMsgToInsertParam(insertMsg)
+		if err != nil {
+			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
+			return err
+		}
+
 		err = m.Insert(ctx, imsg)
 		if err != nil {
+			log.Warn("failed to insert", zap.Error(err))
 			return err
 		}
 
@@ -238,13 +257,17 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 
 		dmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
 		if err != nil {
+			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
 			return err
 		}
+
 		err = m.Delete(ctx, dmsg)
 		if err != nil {
+			log.Warn("failed to delete", zap.Error(err))
 			return err
 		}
 	default:
+		log.Warn("unsupported message type", zap.Any("msgType", msgType))
 		err = fmt.Errorf("unsupported message type: %v", msgType)
 		return err
 	}
