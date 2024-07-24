@@ -266,6 +266,8 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			log.Warn("failed to delete", zap.Error(err))
 			return err
 		}
+	case commonpb.MsgType_TimeTick:
+		return nil
 	default:
 		log.Warn("unsupported message type", zap.Any("msgType", msgType))
 		err = fmt.Errorf("unsupported message type: %v", msgType)
