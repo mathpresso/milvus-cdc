@@ -359,6 +359,7 @@ func convertBlobData(blob *commonpb.Blob, convertType string) (interface{}, erro
 	return nil, nil
 }
 
+/*
 func convertUintSliceToIntSlice(uintSlice []uint64) []int64 {
 	intSlice := make([]int64, len(uintSlice))
 	for i, v := range uintSlice {
@@ -369,7 +370,7 @@ func convertUintSliceToIntSlice(uintSlice []uint64) []int64 {
 	}
 	return intSlice
 }
-
+*/
 // convertInsertMsgToInsertParam는 msgstream.InsertMsg를 api.InsertParam으로 변환합니다.
 func convertInsertMsgToInsertParam(insertMsg *msgstream.InsertMsg) (*api.InsertParam, error) {
 	if insertMsg == nil {
@@ -382,9 +383,9 @@ func convertInsertMsgToInsertParam(insertMsg *msgstream.InsertMsg) (*api.InsertP
 	var columns []entity.Column
 
 	// 예제에서는 RowIDs와 Timestamps를 사용합니다.
-	rowIDColumn := entity.NewColumnInt64("row_id", insertMsg.RowIDs)
-	timestampColumn := entity.NewColumnInt64("timestamp", convertUintSliceToIntSlice(insertMsg.Timestamps))
-	columns = append(columns, rowIDColumn, timestampColumn)
+	//	rowIDColumn := entity.NewColumnInt64("row_id", insertMsg.RowIDs)
+	//	timestampColumn := entity.NewColumnInt64("timestamp", convertUintSliceToIntSlice(insertMsg.Timestamps))
+	//	columns = append(columns, rowIDColumn, timestampColumn)
 
 	// InsertMsg의 FieldsData를 entity.Column으로 변환합니다.
 	for _, fieldData := range insertMsg.FieldsData {
