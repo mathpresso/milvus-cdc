@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-sql-driver/mysql"
-	"github.com/milvus-io/milvus-sdk-go/v2/client"
-	"github.com/milvus-io/milvus-sdk-go/v2/entity"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus/pkg/mq/msgstream"
 	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"go.uber.org/zap"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
@@ -186,29 +187,96 @@ func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropData
 	return m.mysqlOp(ctx, query)
 }
 
+func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, msgBytes []byte) error {
+	//var tsMsg msgstream.TsMsg
+	var err error
+
+	switch msgType {
+	case commonpb.MsgType_Insert:
+		insertMsg := &msgstream.InsertMsg{}
+		err = proto.Unmarshal(msgBytes, insertMsg)
+
+		msg, err := convertInsertMsgToInsertParam(insertMsg)
+		err = m.Insert(ctx, msg)
+		if err != nil {
+			return err
+		}
+	case commonpb.MsgType_Delete:
+		deleteMsg := &msgstream.DeleteMsg{}
+		err = proto.Unmarshal(msgBytes, deleteMsg)
+
+		msg, err := convertDeleteMsgToDeleteParam(deleteMsg)
+		if err != nil {
+			return err
+		}
+		err = m.Delete(ctx, msg)
+		if err != nil {
+			return err
+		}
+	case commonpb.MsgType_Upsert:
+		// UpsertMsg는 InsertMsg와 DeleteMsg를 포함하므로, 따로 언마샬링한 후 조립합니다.
+		insertMsg := &msgstream.InsertMsg{}
+		deleteMsg := &msgstream.DeleteMsg{}
+
+		// msgBytes를 분할하여 각 메시지에 언마샬링합니다. (여기서는 단순히 msgBytes를 나눠서 가정합니다.)
+		half := len(msgBytes) / 2
+		err = proto.Unmarshal(msgBytes[:half], insertMsg)
+		if err != nil {
+			return err
+		}
+
+		imsg, err := convertInsertMsgToInsertParam(insertMsg)
+		err = m.Insert(ctx, imsg)
+		if err != nil {
+			return err
+		}
+
+		err = proto.Unmarshal(msgBytes[half:], deleteMsg)
+		if err != nil {
+			return err
+		}
+
+		dmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
+		if err != nil {
+			return err
+		}
+		err = m.Delete(ctx, dmsg)
+		if err != nil {
+			return err
+		}
+	default:
+		err = fmt.Errorf("unsupported message type: %v", msgType)
+		return err
+	}
+
+	return nil
+}
+
 func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
-	var (
-		resp  *entity.MessageInfo
-		err   error
-		opErr error
-	)
+
 	log.Info("ReplicateMessage", zap.Any("param", param))
 
-	opErr = m.mysqlOp(ctx, "", func(mysqlCli client.Client) error {
-		resp, err = mysqlCli.ReplicateMessage(ctx, param.ChannelName,
-			param.BeginTs, param.EndTs,
-			param.MsgsBytes,
-			param.StartPositions, param.EndPositions,
-			client.WithReplicateMessageMsgBase(param.Base))
-		return err
-	})
-	if err != nil {
-		return err
+	for i, msgBytes := range param.MsgsBytes {
+		header := &commonpb.MsgHeader{}
+		err := proto.Unmarshal(msgBytes, header)
+		if err != nil {
+			log.Warn("failed to unmarshal msg header", zap.Int("index", i), zap.Error(err))
+			return err
+		}
+
+		if header.GetBase() == nil {
+			log.Warn("msg header base is nil", zap.Int("index", i))
+			return err
+		}
+
+		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
+			return err
+		}
+
 	}
-	if opErr != nil {
-		return opErr
-	}
-	param.TargetMsgPosition = resp.Position
+
 	return nil
 }
 

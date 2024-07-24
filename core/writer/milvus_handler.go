@@ -19,8 +19,13 @@
 package writer
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/pkg/mq/msgstream"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -30,7 +35,6 @@ import (
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"github.com/milvus-io/milvus/pkg/util/retry"
 
-	"encoding/json"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
@@ -270,14 +274,6 @@ func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.Rep
 		opErr error
 	)
 
-	for _, msgBytes := range param.MsgsBytes {
-		var record map[string]interface{}
-		if err := json.Unmarshal(msgBytes, &record); err != nil {
-			return fmt.Errorf("failed to decode msgsBytes: %v", err)
-		}
-		log.Info("msgBytes", zap.Any("msgBytes", record))
-	}
-
 	opErr = m.milvusOp(ctx, "", func(milvus client.Client) error {
 		resp, err = milvus.ReplicateMessage(ctx, param.ChannelName,
 			param.BeginTs, param.EndTs,
@@ -294,6 +290,178 @@ func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.Rep
 	}
 	param.TargetMsgPosition = resp.Position
 	return nil
+}
+
+func convertBlobData(blob *commonpb.Blob, convertType string) (interface{}, error) {
+	if blob == nil || len(blob.Value) == 0 {
+		return nil, fmt.Errorf("empty or nil blob")
+	}
+
+	buf := bytes.NewReader(blob.Value)
+
+	if convertType == "floatvector" {
+		// int64 변환
+		var intValue int64
+		if err := binary.Read(buf, binary.LittleEndian, &intValue); err != nil {
+			return nil, fmt.Errorf("failed to read int64: %v", err)
+		}
+
+		return intValue, nil
+	}
+
+	// bool 변환
+	var boolValue bool
+	if convertType == "bool" {
+		if err := binary.Read(buf, binary.LittleEndian, &boolValue); err != nil {
+			return nil, fmt.Errorf("failed to read bool: %v", err)
+		}
+	}
+
+	// varchar 변환
+	if convertType == "varchar" {
+		stringBytes := make([]byte, 0)
+		var stringValue string
+
+		for {
+			b, err := buf.ReadByte()
+			if err != nil {
+				return nil, fmt.Errorf("failed to read string: %v", err)
+			}
+			if b == 0 {
+				break
+			}
+			stringBytes = append(stringBytes, b)
+		}
+		stringValue = string(stringBytes)
+
+		return stringValue, nil
+	}
+
+	// [][]float32 변환
+	if convertType == "floatvector" {
+		var floatArrays [][]float32
+
+		for buf.Len() > 0 {
+			var floatArray []float32
+			for i := 0; i < 3; i++ { // 예제에서는 각 float32 배열이 3개의 요소를 가진다고 가정
+				var floatValue float32
+				if err := binary.Read(buf, binary.LittleEndian, &floatValue); err != nil {
+					return nil, fmt.Errorf("failed to read float32: %v", err)
+				}
+				floatArray = append(floatArray, floatValue)
+			}
+			floatArrays = append(floatArrays, floatArray)
+		}
+
+		return floatArrays, nil
+	}
+
+	return nil, nil
+}
+
+func convertUintSliceToIntSlice(uintSlice []uint64) []int64 {
+	intSlice := make([]int64, len(uintSlice))
+	for i, v := range uintSlice {
+		if v > uint64(^int64(0)) {
+			return nil
+		}
+		intSlice[i] = int64(v)
+	}
+	return intSlice
+}
+
+// convertInsertMsgToInsertParam는 msgstream.InsertMsg를 api.InsertParam으로 변환합니다.
+func convertInsertMsgToInsertParam(insertMsg *msgstream.InsertMsg) (*api.InsertParam, error) {
+	if insertMsg == nil {
+		return nil, fmt.Errorf("nil insert message")
+	}
+
+	collectionName := insertMsg.CollectionName
+
+	// 각 필드 데이터를 추출하여 entity.Column 타입으로 변환합니다.
+	var columns []entity.Column
+
+	// 예제에서는 RowIDs와 Timestamps를 사용합니다.
+	rowIDColumn := entity.NewColumnInt64("row_id", insertMsg.RowIDs)
+	timestampColumn := entity.NewColumnInt64("timestamp", convertUintSliceToIntSlice(insertMsg.Timestamps))
+	columns = append(columns, rowIDColumn, timestampColumn)
+
+	// InsertMsg의 FieldsData를 entity.Column으로 변환합니다.
+	for _, fieldData := range insertMsg.FieldsData {
+		switch fieldData.Type {
+		case schemapb.DataType_Bool:
+			values := make([]bool, len(fieldData.GetScalars().GetBoolData().Data))
+			for i, v := range fieldData.GetScalars().GetBoolData().Data {
+				values[i] = v
+			}
+			column := entity.NewColumnBool(fieldData.FieldName, values)
+			columns = append(columns, column)
+		case schemapb.DataType_VarChar:
+			values := make([]string, len(fieldData.GetScalars().GetStringData().Data))
+			for i, v := range fieldData.GetScalars().GetStringData().Data {
+				values[i] = v
+			}
+			column := entity.NewColumnString(fieldData.FieldName, values)
+			columns = append(columns, column)
+		case schemapb.DataType_Int64:
+			values := make([]int64, len(fieldData.GetScalars().GetLongData().Data))
+			for i, v := range fieldData.GetScalars().GetLongData().Data {
+				values[i] = v
+			}
+			column := entity.NewColumnInt64(fieldData.FieldName, values)
+			columns = append(columns, column)
+		case schemapb.DataType_Float:
+			values := make([]float32, len(fieldData.GetScalars().GetFloatData().Data))
+			for i, v := range fieldData.GetScalars().GetFloatData().Data {
+				values[i] = v
+			}
+			column := entity.NewColumnFloat(fieldData.FieldName, values)
+			columns = append(columns, column)
+		case schemapb.DataType_FloatVector:
+			dim := int(fieldData.GetVectors().Dim)
+			values := make([][]float32, len(fieldData.GetVectors().GetFloatVector().Data)/dim)
+			for i := 0; i < len(values); i++ {
+				values[i] = fieldData.GetVectors().GetFloatVector().Data[i*dim : (i+1)*dim]
+			}
+			column := entity.NewColumnFloatVector(fieldData.FieldName, dim, values)
+			columns = append(columns, column)
+		default:
+			return nil, fmt.Errorf("unsupported field type: %v", fieldData.Type)
+		}
+	}
+
+	insertParam := &api.InsertParam{
+		CollectionName: collectionName,
+		Columns:        columns,
+	}
+	return insertParam, nil
+}
+
+// convertInsertMsgToInsertParam는 msgstream.InsertMsg를 api.InsertParam으로 변환합니다.
+func convertDeleteMsgToDeleteParam(deleteMsg *msgstream.DeleteMsg) (*api.DeleteParam, error) {
+	if deleteMsg == nil {
+		return nil, fmt.Errorf("nil insert message")
+	}
+
+	collectionName := deleteMsg.CollectionName
+
+	// PrimaryKeys 필드를 entity.Column으로 변환합니다.
+	var pkColumn entity.Column
+	if deleteMsg.PrimaryKeys.GetIntId() != nil {
+		pkColumn = entity.NewColumnInt64("row_id", deleteMsg.PrimaryKeys.GetIntId().Data)
+	} else if deleteMsg.PrimaryKeys.GetStrId() != nil {
+		pkColumn = entity.NewColumnString("row_id", deleteMsg.PrimaryKeys.GetStrId().Data)
+	} else {
+		return nil, fmt.Errorf("unsupported primary key data type")
+	}
+
+	deleteParam := &api.DeleteParam{
+		CollectionName: collectionName,
+		PartitionName:  deleteMsg.PartitionName,
+		Column:         pkColumn,
+	}
+
+	return deleteParam, nil
 }
 
 func (m *MilvusDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
