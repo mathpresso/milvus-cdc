@@ -278,9 +278,6 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 }
 
 func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
-
-	log.Info("ReplicateMessage", zap.Any("param", param))
-
 	for i, msgBytes := range param.MsgsBytes {
 		header := &commonpb.MsgHeader{}
 		err := proto.Unmarshal(msgBytes, header)

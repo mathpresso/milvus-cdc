@@ -1228,11 +1228,15 @@ func (r *replicateChannelHandler) handlePack(forward bool, pack *msgstream.MsgPa
 				}
 				realMsg.CollectionID = info.CollectionID
 				partitionID := realMsg.PartitionID
-				realMsg.PartitionID, err = r.getPartitionID(sourceCollectionID, partitionID, info, realMsg.PartitionName)
-				if realMsg.PartitionID == -1 {
-					log.Info("skip insert msg because partition has been dropped in the source and target",
-						zap.Int64("partition_id", partitionID), zap.String("partition_name", realMsg.PartitionName))
-					continue
+
+				log.Info("target Info", zap.Any("info", info))
+				if info.CollectionID != 0 {
+					realMsg.PartitionID, err = r.getPartitionID(sourceCollectionID, partitionID, info, realMsg.PartitionName)
+					if realMsg.PartitionID == -1 {
+						log.Info("skip insert msg because partition has been dropped in the source and target",
+							zap.Int64("partition_id", partitionID), zap.String("partition_name", realMsg.PartitionName))
+						continue
+					}
 				}
 				realMsg.ShardName = info.VChannel
 				dataLen = int(realMsg.GetNumRows())
