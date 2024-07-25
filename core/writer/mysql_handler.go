@@ -291,6 +291,8 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 			return err
 		}
 
+		log.Info("param", zap.Any("param", param))
+		log.Info("replicate message", zap.Any("msgType", header.GetBase().GetMsgType()), zap.Any("header", header))
 		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), msgBytes)
 		if err != nil {
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
