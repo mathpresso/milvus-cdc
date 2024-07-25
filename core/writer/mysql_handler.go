@@ -200,12 +200,14 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			return err
 		}
 
+		log.Info("insert msg", zap.Any("insertMsg", insertMsg))
 		msg, err := convertInsertMsgToInsertParam(insertMsg)
 		if err != nil {
 			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
 			return err
 		}
 
+		log.Info("insert msg param", zap.Any("insertMsg", msg))
 		err = m.Insert(ctx, msg)
 		if err != nil {
 			log.Warn("failed to unmarshal insert msg", zap.Error(err))
