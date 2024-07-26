@@ -9,6 +9,7 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"strconv"
 	"strings"
 	"time"
 
@@ -162,8 +163,13 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		case *schemapb.FieldData_Vectors:
 			switch vectorData := data.Vectors.Data.(type) {
 			case *schemapb.VectorField_FloatVector:
-				for _, v := range vectorData.FloatVector.Data {
-					colValues = append(colValues, fmt.Sprintf("string_to_vector('%v')", v))
+				dim := data.Vectors.Dim
+				var vec []float32
+				for i, v := range vectorData.FloatVector.Data {
+					if int64(i)%dim == 0 && i != 0 {
+						vec = append(vec, v)
+					}
+					colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 				}
 
 				rowValues = append(rowValues, colValues)
@@ -192,6 +198,14 @@ func interfaceSliceToStringSlice(input []interface{}) []string {
 	for _, v := range input {
 		str, _ := v.(string)
 		output = append(output, str)
+	}
+	return output
+}
+
+func float32SliceToStringSlice(input []float32) []string {
+	output := make([]string, len(input))
+	for i, v := range input {
+		output[i] = strconv.FormatFloat(float64(v), 'f', -1, 32)
 	}
 	return output
 }
