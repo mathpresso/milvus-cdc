@@ -182,15 +182,21 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 			return fmt.Errorf("unsupported field data type: %T", data)
 		}
 	}
+
+	var value string
 	for _, rowValue := range rowValues {
+		value = "("
 		for _, colValue := range rowValue {
 			switch colValue.(type) {
-			case interface{}:
-				values = append(values, fmt.Sprintf("(%v)", colValue))
+			case string:
+				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", colValue))
 			default:
+				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", colValue))
 				values = append(values, fmt.Sprintf("'%v'", colValue))
 			}
 		}
+		value = fmt.Sprintf("%s)", value)
+		values = append(values, value)
 	}
 
 	//string_to_vector('[1,2,3]')
