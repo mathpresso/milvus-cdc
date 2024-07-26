@@ -168,7 +168,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 				for i, v := range vectorData.FloatVector.Data {
 					vec = append(vec, v)
 
-					if int64(i)%dim != 0 && i != 0 {
+					if int64(i)%dim == 0 && i != 0 {
 						colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 						vec = []float32{}
 					}
@@ -183,7 +183,14 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		}
 	}
 	for _, rowValue := range rowValues {
-		values = append(values, fmt.Sprintf("(%v)", join(interfaceSliceToStringSlice(rowValue), ",")))
+		for _, colValue := range rowValue {
+			switch colValue.(type) {
+			case interface{}:
+				values = append(values, fmt.Sprintf("(%v)", colValue))
+			default:
+				values = append(values, fmt.Sprintf("'%v'", colValue))
+			}
+		}
 	}
 
 	//string_to_vector('[1,2,3]')
