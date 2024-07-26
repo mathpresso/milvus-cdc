@@ -191,6 +191,10 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 	var tsMsg msgstream.TsMsg
 	var err error
 
+	if msgBytes == nil {
+		return errors.New("msgBytes is nil")
+
+	}
 	msg, err := tsMsg.Unmarshal(msgBytes)
 	if err != nil {
 		log.Warn("failed to unmarshal ts msg", zap.Error(err))
