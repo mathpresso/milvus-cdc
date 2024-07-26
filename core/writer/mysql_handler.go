@@ -7,6 +7,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-sql-driver/mysql"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
 	"strings"
 	"time"
@@ -108,18 +109,91 @@ func (m *MySQLDataHandler) DropCollection(ctx context.Context, param *api.DropCo
 func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
 	columns := []string{}
 	values := []string{}
+
+	rowValues := [][]interface{}{}
 	for _, col := range param.Columns {
 		columns = append(columns, col.Name())
-		values = append(values, "?")
+
+		colValues := []interface{}{}
+		switch data := col.FieldData().GetField().(type) {
+		case *schemapb.FieldData_Scalars:
+			switch scalarData := data.Scalars.Data.(type) {
+			case *schemapb.ScalarField_LongData:
+				for _, v := range scalarData.LongData.Data {
+					colValues = append(colValues, v)
+				}
+			case *schemapb.ScalarField_BoolData:
+				for _, v := range scalarData.BoolData.Data {
+					colValues = append(colValues, v)
+				}
+			case *schemapb.ScalarField_StringData:
+				for _, v := range scalarData.StringData.Data {
+					colValues = append(colValues, fmt.Sprintf("'%s'", v))
+				}
+			case *schemapb.ScalarField_ArrayData:
+				for _, v := range scalarData.ArrayData.Data {
+					colValues = append(colValues, fmt.Sprintf("'%s'", v))
+				}
+			case *schemapb.ScalarField_IntData:
+				for _, v := range scalarData.IntData.Data {
+					colValues = append(colValues, v)
+				}
+			case *schemapb.ScalarField_FloatData:
+				for _, v := range scalarData.FloatData.Data {
+					colValues = append(colValues, v)
+				}
+			case *schemapb.ScalarField_DoubleData:
+				for _, v := range scalarData.DoubleData.Data {
+					colValues = append(colValues, v)
+				}
+			case *schemapb.ScalarField_JsonData:
+				for _, v := range scalarData.JsonData.Data {
+					colValues = append(colValues, fmt.Sprintf("'%s'", v))
+				}
+			case *schemapb.ScalarField_BytesData:
+				for _, v := range scalarData.BytesData.Data {
+					colValues = append(colValues, fmt.Sprintf("'%s'", v))
+				}
+			default:
+				return fmt.Errorf("unsupported scalar data type: %T", scalarData)
+			}
+
+			rowValues = append(rowValues, colValues)
+		case *schemapb.FieldData_Vectors:
+			switch vectorData := data.Vectors.Data.(type) {
+			case *schemapb.VectorField_FloatVector:
+				for _, v := range vectorData.FloatVector.Data {
+					colValues = append(colValues, fmt.Sprintf("string_to_vector('%v')", v))
+				}
+
+				rowValues = append(rowValues, colValues)
+			default:
+				return fmt.Errorf("unsupported vector data type: %T", vectorData)
+			}
+		default:
+			return fmt.Errorf("unsupported field data type: %T", data)
+		}
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+	for _, rowValue := range rowValues {
+		values = append(values, fmt.Sprintf("(%v)", join(interfaceSliceToStringSlice(rowValue), ",")))
+	}
+
+	//string_to_vector('[1,2,3]')
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
 		param.CollectionName, join(columns, ","), join(values, ","))
 	log.Info("INSERT", zap.String("query", query))
-	args := make([]interface{}, len(param.Columns))
-	for i, col := range param.Columns {
-		args[i] = col.FieldData()
+
+	return m.mysqlOp(ctx, query)
+
+}
+
+func interfaceSliceToStringSlice(input []interface{}) []string {
+	var output []string
+	for _, v := range input {
+		str, _ := v.(string)
+		output = append(output, str)
 	}
-	return m.mysqlOp(ctx, query, args...)
+	return output
 }
 
 func (m *MySQLDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
