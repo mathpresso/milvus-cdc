@@ -149,6 +149,7 @@ func (c *ChannelWriter) HandleReplicateMessage(ctx context.Context, channelName 
 			zap.String("channel", channelName),
 			zap.String("type", msg.Type().String()),
 		}
+
 		if msg.Type() == commonpb.MsgType_Insert {
 			insertMsg := msg.(*msgstream.InsertMsg)
 
@@ -175,6 +176,7 @@ func (c *ChannelWriter) HandleReplicateMessage(ctx context.Context, channelName 
 			log.Warn("failed to marshal msg", zap.Error(err))
 			return nil, nil, err
 		}
+
 		if _, ok := msgBytes.([]byte); !ok {
 			log.Warn("failed to convert msg bytes to []byte")
 			return nil, nil, err

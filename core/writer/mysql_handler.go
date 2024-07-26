@@ -188,42 +188,43 @@ func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropData
 }
 
 func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, msgBytes []byte) error {
-	//var tsMsg msgstream.TsMsg
+	var tsMsg msgstream.TsMsg
 	var err error
 
+	msg, err := tsMsg.Unmarshal(msgBytes)
+	if err != nil {
+		log.Warn("failed to unmarshal ts msg", zap.Error(err))
+		return err
+	}
+
+	log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
 	switch msgType {
 	case commonpb.MsgType_Insert:
-		insertMsg := &msgstream.InsertMsg{}
-		err = proto.Unmarshal(msgBytes, insertMsg)
-		if err != nil {
-			log.Warn("failed to unmarshal insert msg", zap.Error(err))
-			return err
-		}
+		insertMsg := msg.(*msgstream.InsertMsg)
 
 		log.Info("insert msg", zap.Any("insertMsg", insertMsg.InsertRequest), zap.Any("insertMsgRows", insertMsg.NumRows))
 		log.Info("msgBytes", zap.Any("msgBytes", msgBytes))
-		msg, err := convertInsertMsgToInsertParam(insertMsg)
+		tmsg, err := convertInsertMsgToInsertParam(insertMsg)
 		if err != nil {
 			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
 			return err
 		}
 
-		log.Info("insert msg param", zap.Any("insertMsg", msg))
-		err = m.Insert(ctx, msg)
+		log.Info("insert msg param", zap.Any("insertMsg", tmsg))
+		err = m.Insert(ctx, tmsg)
 		if err != nil {
 			log.Warn("failed to unmarshal insert msg", zap.Error(err))
 			return err
 		}
 	case commonpb.MsgType_Delete:
-		deleteMsg := &msgstream.DeleteMsg{}
-		err = proto.Unmarshal(msgBytes, deleteMsg)
+		deleteMsg := msg.(*msgstream.DeleteMsg)
 
-		msg, err := convertDeleteMsgToDeleteParam(deleteMsg)
+		tmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
 		if err != nil {
 			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
 			return err
 		}
-		err = m.Delete(ctx, msg)
+		err = m.Delete(ctx, tmsg)
 		if err != nil {
 			log.Warn("failed to delete", zap.Error(err))
 			return err
