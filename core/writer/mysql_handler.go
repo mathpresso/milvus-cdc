@@ -192,18 +192,23 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 	var err error
 
 	if msgBytes == nil {
+		log.Warn("msgBytes is nil")
 		return errors.New("msgBytes is nil")
 
 	}
-	msg, err := tsMsg.Unmarshal(msgBytes)
-	if err != nil {
-		log.Warn("failed to unmarshal ts msg", zap.Error(err))
-		return err
-	}
 
-	log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
 	switch msgType {
 	case commonpb.MsgType_Insert:
+		tsMsg = &msgstream.InsertMsg{}
+
+		msg, err := tsMsg.Unmarshal(msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal ts msg", zap.Error(err))
+			return err
+		}
+
+		log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
+
 		insertMsg := msg.(*msgstream.InsertMsg)
 
 		log.Info("insert msg", zap.Any("insertMsg", insertMsg.InsertRequest), zap.Any("insertMsgRows", insertMsg.NumRows))
@@ -221,6 +226,16 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			return err
 		}
 	case commonpb.MsgType_Delete:
+		tsMsg = &msgstream.DeleteMsg{}
+
+		msg, err := tsMsg.Unmarshal(msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal ts msg", zap.Error(err))
+			return err
+		}
+
+		log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
+
 		deleteMsg := msg.(*msgstream.DeleteMsg)
 
 		tmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
@@ -235,6 +250,7 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 		}
 	case commonpb.MsgType_Upsert:
 		// UpsertMsg는 InsertMsg와 DeleteMsg를 포함하므로, 따로 언마샬링한 후 조립합니다.
+		// tsMsg = &msgstream.UpsertMsg{}
 		insertMsg := &msgstream.InsertMsg{}
 		deleteMsg := &msgstream.DeleteMsg{}
 
