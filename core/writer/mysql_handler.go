@@ -192,7 +192,6 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", colValue))
 			default:
 				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", colValue))
-				values = append(values, fmt.Sprintf("'%v'", colValue))
 			}
 		}
 		value = fmt.Sprintf("%s)", value)
