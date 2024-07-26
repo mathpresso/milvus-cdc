@@ -163,13 +163,15 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		case *schemapb.FieldData_Vectors:
 			switch vectorData := data.Vectors.Data.(type) {
 			case *schemapb.VectorField_FloatVector:
-				dim := data.Vectors.Dim
+				dim := data.Vectors.Dim - 1
 				var vec []float32
 				for i, v := range vectorData.FloatVector.Data {
-					if int64(i)%dim == 0 && i != 0 {
-						vec = append(vec, v)
+					vec = append(vec, v)
+
+					if int64(i)%dim != 0 && i != 0 {
+						colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
+						vec = []float32{}
 					}
-					colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 				}
 
 				rowValues = append(rowValues, colValues)
