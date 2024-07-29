@@ -109,7 +109,6 @@ func (m *MySQLDataHandler) DropCollection(ctx context.Context, param *api.DropCo
 
 func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
 	columns := []string{}
-	values := []string{}
 
 	rowValues := [][]interface{}{}
 	for _, col := range param.Columns {
@@ -183,24 +182,30 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		}
 	}
 
-	var value string
-	for _, rowValue := range rowValues {
+	var value, values string
+
+	for rowCnt := 0; rowCnt < len(rowValues[0]); rowCnt++ {
 		value = "("
-		for _, colValue := range rowValue {
-			switch colValue.(type) {
+		for colNo, _ := range columns {
+			switch rowValues[colNo][rowCnt].(type) {
 			case string:
-				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", colValue))
+				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", rowValues[colNo][rowCnt]))
 			default:
-				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", colValue))
+				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
 			}
 		}
 		value = fmt.Sprintf("%s)", value)
-		values = append(values, value)
+
+		if rowCnt == 0 {
+			values = fmt.Sprintf("%s", value)
+		} else {
+			values = fmt.Sprintf("%s,%s", values, value)
+		}
 	}
 
 	//string_to_vector('[1,2,3]')
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-		param.CollectionName, join(columns, ","), join(values, ","))
+		param.CollectionName, join(columns, ","), values)
 	log.Info("INSERT", zap.String("query", query))
 
 	return m.mysqlOp(ctx, query)
