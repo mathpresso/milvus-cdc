@@ -217,7 +217,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 	//string_to_vector('[1,2,3]')
 	query := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUES %s",
 		param.Database, param.CollectionName, join(columns, ","), values)
-	log.Info("INSERT", zap.String("query", query))
+	//	log.Info("INSERT", zap.String("query", query))
 
 	return m.mysqlOp(ctx, query)
 
