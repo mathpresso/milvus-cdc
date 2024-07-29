@@ -192,9 +192,17 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		for colNo, _ := range columns {
 			switch rowValues[colNo][rowCnt].(type) {
 			case string:
-				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", rowValues[colNo][rowCnt]))
+				if colNo == 0 {
+					value = fmt.Sprintf("%s", fmt.Sprintf("%s", rowValues[colNo][rowCnt]))
+				} else {
+					value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%s", rowValues[colNo][rowCnt]))
+				}
 			default:
-				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
+				if colNo == 0 {
+					value = fmt.Sprintf("%s", fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
+				} else {
+					value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
+				}
 			}
 		}
 		value = fmt.Sprintf("%s)", value)
@@ -207,8 +215,8 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 	}
 
 	//string_to_vector('[1,2,3]')
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-		param.CollectionName, join(columns, ","), values)
+	query := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUES %s",
+		param.Database, param.CollectionName, join(columns, ","), values)
 	log.Info("INSERT", zap.String("query", query))
 
 	return m.mysqlOp(ctx, query)
@@ -233,7 +241,7 @@ func float32SliceToStringSlice(input []float32) []string {
 }
 
 func (m *MySQLDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
-	query := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", param.CollectionName, param.Column.Name)
+	query := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE `%s` = ?", param.Database, param.CollectionName, param.Column.Name)
 	log.Info("DELETE", zap.String("query", query))
 	return m.mysqlOp(ctx, query, param.Column.FieldData())
 }
@@ -249,8 +257,8 @@ func (m *MySQLDataHandler) DropPartition(ctx context.Context, param *api.DropPar
 }
 
 func (m *MySQLDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
-	query := fmt.Sprintf("CREATE INDEX %s ON %s (%s)",
-		param.GetIndexName(), param.GetCollectionName(), param.GetFieldName())
+	query := fmt.Sprintf("CREATE INDEX %s ON `%s`.`%s` (`%s`)",
+		param.GetIndexName(), param.DbName, param.GetCollectionName(), param.GetFieldName())
 	log.Info("CREATE INDEX", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
@@ -286,7 +294,7 @@ func (m *MySQLDataHandler) Flush(ctx context.Context, param *api.FlushParam) err
 }
 
 func (m *MySQLDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
-	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", param.DbName)
+	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", param.DbName)
 	log.Info("CREATE DATABASE", zap.String("query", query))
 	return m.mysqlOp(ctx, query)
 }
