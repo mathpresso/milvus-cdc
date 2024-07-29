@@ -753,7 +753,9 @@ func (e *MetaCDC) startReplicateDMLMsg(replicateCtx context.Context, info *meta.
 					log.Warn("the message pack is nil, the task may be stopping")
 					return
 				}
+
 				pChannel := msgPack.EndPositions[0].GetChannelName()
+
 				position, targetPosition, err := entity.writerObj.HandleReplicateMessage(replicateCtx, pChannel, msgPack)
 				if err != nil {
 					taskLog.Warn("fail to handle the replicate message", zap.Any("pack", msgPack), zap.Error(err))

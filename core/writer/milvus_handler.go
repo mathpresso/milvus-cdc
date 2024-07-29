@@ -19,11 +19,8 @@
 package writer
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
-	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
 	"time"
@@ -292,85 +289,6 @@ func (m *MilvusDataHandler) ReplicateMessage(ctx context.Context, param *api.Rep
 	return nil
 }
 
-func convertBlobData(blob *commonpb.Blob, convertType string) (interface{}, error) {
-	if blob == nil || len(blob.Value) == 0 {
-		return nil, fmt.Errorf("empty or nil blob")
-	}
-
-	buf := bytes.NewReader(blob.Value)
-
-	if convertType == "floatvector" {
-		// int64 변환
-		var intValue int64
-		if err := binary.Read(buf, binary.LittleEndian, &intValue); err != nil {
-			return nil, fmt.Errorf("failed to read int64: %v", err)
-		}
-
-		return intValue, nil
-	}
-
-	// bool 변환
-	var boolValue bool
-	if convertType == "bool" {
-		if err := binary.Read(buf, binary.LittleEndian, &boolValue); err != nil {
-			return nil, fmt.Errorf("failed to read bool: %v", err)
-		}
-	}
-
-	// varchar 변환
-	if convertType == "varchar" {
-		stringBytes := make([]byte, 0)
-		var stringValue string
-
-		for {
-			b, err := buf.ReadByte()
-			if err != nil {
-				return nil, fmt.Errorf("failed to read string: %v", err)
-			}
-			if b == 0 {
-				break
-			}
-			stringBytes = append(stringBytes, b)
-		}
-		stringValue = string(stringBytes)
-
-		return stringValue, nil
-	}
-
-	// [][]float32 변환
-	if convertType == "floatvector" {
-		var floatArrays [][]float32
-
-		for buf.Len() > 0 {
-			var floatArray []float32
-			for i := 0; i < 3; i++ { // 예제에서는 각 float32 배열이 3개의 요소를 가진다고 가정
-				var floatValue float32
-				if err := binary.Read(buf, binary.LittleEndian, &floatValue); err != nil {
-					return nil, fmt.Errorf("failed to read float32: %v", err)
-				}
-				floatArray = append(floatArray, floatValue)
-			}
-			floatArrays = append(floatArrays, floatArray)
-		}
-
-		return floatArrays, nil
-	}
-
-	return nil, nil
-}
-
-/*
-func convertUintSliceToIntSlice(uintSlice []uint64) []int64 {
-	intSlice := make([]int64, len(uintSlice))
-	for i, v := range uintSlice {
-		if v > uint64(^int64(0)) {
-			return nil
-		}
-		intSlice[i] = int64(v)
-	}
-	return intSlice
-}
-*/
 // convertInsertMsgToInsertParam는 msgstream.InsertMsg를 api.InsertParam으로 변환합니다.
 func convertInsertMsgToInsertParam(insertMsg *msgstream.InsertMsg) (*api.InsertParam, error) {
 	if insertMsg == nil {

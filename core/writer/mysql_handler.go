@@ -52,6 +52,7 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 
 	handler.db, err = handler.createDBConnection(handler.connectTimeout)
 	if err != nil {
+		log.Error("failed to create mysql connection", zap.Error(err))
 		return nil, err
 	}
 
@@ -305,14 +306,13 @@ func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropData
 	return m.mysqlOp(ctx, query)
 }
 
-func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, msgBytes []byte) error {
+func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, dbName string, msgBytes []byte) error {
 	var tsMsg msgstream.TsMsg
 	var err error
 
 	if msgBytes == nil {
 		log.Warn("msgBytes is nil")
 		return errors.New("msgBytes is nil")
-
 	}
 
 	switch msgType {
@@ -337,7 +337,7 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			return err
 		}
 
-		tmsg.Database = insertMsg.DbName
+		tmsg.Database = dbName
 		log.Info("insert msg param", zap.Any("insertMsg", tmsg))
 		err = m.Insert(ctx, tmsg)
 		if err != nil {
@@ -363,7 +363,7 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			return err
 		}
 
-		tmsg.Database = deleteMsg.DbName
+		tmsg.Database = dbName
 
 		err = m.Delete(ctx, tmsg)
 		if err != nil {
@@ -438,7 +438,7 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 		}
 
 		log.Info("replicate message", zap.Any("DbName", param.Database))
-		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), msgBytes)
+		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), param.Database, msgBytes)
 		if err != nil {
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
 			return err
