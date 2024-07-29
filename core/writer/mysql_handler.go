@@ -337,6 +337,7 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			return err
 		}
 
+		tmsg.Database = insertMsg.DbName
 		log.Info("insert msg param", zap.Any("insertMsg", tmsg))
 		err = m.Insert(ctx, tmsg)
 		if err != nil {
@@ -361,6 +362,9 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
 			return err
 		}
+
+		tmsg.Database = deleteMsg.DbName
+
 		err = m.Delete(ctx, tmsg)
 		if err != nil {
 			log.Warn("failed to delete", zap.Error(err))
@@ -433,8 +437,6 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 			return err
 		}
 
-		log.Info("param", zap.Any("param", param))
-		log.Info("replicate message", zap.Any("msgType", header.GetBase().GetMsgType()), zap.Any("header", header))
 		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), msgBytes)
 		if err != nil {
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
