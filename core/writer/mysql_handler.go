@@ -85,6 +85,9 @@ func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...in
 	retryFunc := func() error {
 		log.Info("executing mysql operation", zap.String("query", query), zap.Any("args", args))
 		_, err := m.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			log.Warn("failed to execute mysql operation", zap.Error(err))
+		}
 		return err
 	}
 
@@ -112,7 +115,7 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 
 	rowValues := [][]interface{}{}
 	for _, col := range param.Columns {
-		columns = append(columns, col.Name())
+		columns = append(columns, fmt.Sprintf("`%s`", col.Name()))
 
 		colValues := []interface{}{}
 		switch data := col.FieldData().GetField().(type) {
