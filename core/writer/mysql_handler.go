@@ -60,24 +60,18 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 }
 
 func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, error) {
-	connector, err := mysql.NewConnector(&mysql.Config{
+	cfg := mysql.Config{
 		Addr:                 m.address,
 		User:                 m.username,
 		Passwd:               m.password,
 		Net:                  "tcp",
 		AllowNativePasswords: true,
-		DBName:               "information_schema",
 		Timeout:              time.Duration(connectionTimeout) * time.Second,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create connector: %v", err)
 	}
 
-	log.Info("connecting to mysql database", zap.Any("connector", connector))
-	db := sql.OpenDB(connector)
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping mysql database : %v", err)
+	db, err := sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect mysql database : %v", err)
 	}
 
 	return db, nil
