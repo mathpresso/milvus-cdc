@@ -303,18 +303,21 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 
 func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 	connectParam := req.MilvusConnectParam
-	if connectParam.Host == "" {
-		return servererror.NewClientError("the milvus host is empty")
+	if connectParam.TargetDBType != "bigquery" {
+		if connectParam.Host == "" {
+			return servererror.NewClientError("the " + connectParam.TargetDBType + " host is empty")
+		}
+		if connectParam.Port <= 0 {
+			return servererror.NewClientError("the " + connectParam.TargetDBType + " port is less or equal zero")
+		}
+		if (connectParam.Username != "" && connectParam.Password == "") ||
+			(connectParam.Username == "" && connectParam.Password != "") {
+			return servererror.NewClientError("cannot set only one of the " + connectParam.TargetDBType + " username and password")
+		}
 	}
-	if connectParam.Port <= 0 {
-		return servererror.NewClientError("the milvus port is less or equal zero")
-	}
-	if (connectParam.Username != "" && connectParam.Password == "") ||
-		(connectParam.Username == "" && connectParam.Password != "") {
-		return servererror.NewClientError("cannot set only one of the milvus username and password")
-	}
+
 	if connectParam.ConnectTimeout < 0 {
-		return servererror.NewClientError("the milvus connect timeout is less zero")
+		return servererror.NewClientError("the " + connectParam.TargetDBType + " connect timeout is less zero")
 	}
 	cacheParam := req.BufferConfig
 	if cacheParam.Period < 0 {
@@ -356,6 +359,15 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 			cdcwriter.MySQLAddressOption(fmt.Sprintf("%s:%d", connectParam.Host, connectParam.Port)),
 			cdcwriter.MySQLUserOption(connectParam.Username, connectParam.Password),
 			cdcwriter.MySQLConnectTimeoutOption(connectParam.ConnectTimeout))
+		if err != nil {
+			log.Warn("fail to connect the mysql", zap.Any("connect_param", connectParam), zap.Error(err))
+			return errors.WithMessage(err, "fail to connect the mysql")
+		}
+	} else if strings.ToLower(connectParam.TargetDBType) == "elasticsearch" {
+		_, err = cdcwriter.NewESDataHandler(
+			cdcwriter.ESAddressOption(fmt.Sprintf("%s:%d", connectParam.Host, connectParam.Port)),
+			cdcwriter.ESUserOption(connectParam.Username, connectParam.Password),
+			cdcwriter.ESConnectTimeoutOption(connectParam.ConnectTimeout))
 		if err != nil {
 			log.Warn("fail to connect the mysql", zap.Any("connect_param", connectParam), zap.Error(err))
 			return errors.WithMessage(err, "fail to connect the mysql")
@@ -641,6 +653,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			MessageBufferSize: bufferSize,
 			Retry:             e.config.Retry,
 		}, metaOp.GetAllDroppedObj())
+	} else if strings.ToLower(targetConfig.TargetDBType) == "elasticsearch" {
 	}
 
 	e.replicateEntityMap.Lock()

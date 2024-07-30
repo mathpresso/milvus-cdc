@@ -2,29 +2,30 @@ package writer
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"time"
 
-	"cloud.google.com/go/bigquery"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
-	"go.uber.org/zap"
-	"google.golang.org/api/option"
-
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
+	"go.uber.org/zap"
 )
 
 type ESDataHandler struct {
 	api.DataHandler
 
-	projectID      string
-	credentials    string
+	address        string
+	username       string
+	password       string
 	connectTimeout int
-	client         *bigquery.Client
+	db             *sql.DB
 	retryOptions   *backoff.ExponentialBackOff
+	mysqlCli       *sql.DB
 }
 
 // NewBigQueryDataHandler options must include ProjectIDOption and CredentialsOption
@@ -38,52 +39,49 @@ func NewESDataHandler(options ...config.Option[*ESDataHandler]) (*ESDataHandler,
 	for _, option := range options {
 		option.Apply(handler)
 	}
-	if handler.projectID == "" {
-		return nil, errors.New("empty BigQuery project ID")
-	}
-	if handler.credentials == "" {
-		return nil, errors.New("empty BigQuery credentials")
+	if handler.address == "" {
+		return nil, errors.New("empty MySQL address")
 	}
 
 	var err error
-	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
-	defer cancel()
 
-	handler.client, err = handler.createESClient(timeoutContext)
+	handler.db, err = handler.createESClient(handler.connectTimeout)
 	if err != nil {
+		log.Error("failed to create mysql connection", zap.Error(err))
 		return nil, err
 	}
 
 	return handler, nil
 }
 
-func (m *ESDataHandler) createESClient(ctx context.Context) (*bigquery.Client, error) {
-	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentialsFile(m.credentials))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+func (m *ESDataHandler) createESClient(connectionTimeout int) (*sql.DB, error) {
+	cfg := mysql.Config{
+		Addr:                 m.address,
+		User:                 m.username,
+		Passwd:               m.password,
+		Net:                  "tcp",
+		AllowNativePasswords: true,
+		Timeout:              time.Duration(connectionTimeout) * time.Second,
 	}
-	return client, nil
+
+	db, err := sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		log.Info("failed to connect mysql database", zap.Any("info", cfg.FormatDSN()))
+		return nil, fmt.Errorf("failed to connect mysql database : %v", err)
+	}
+
+	return db, nil
+
 }
 
-func (m *ESDataHandler) ESOp(ctx context.Context, query string, params map[string]interface{}) error {
+func (m *ESDataHandler) ESOp(ctx context.Context, query string, args ...interface{}) error {
 	retryFunc := func() error {
-		q := m.client.Query(query)
-		q.Parameters = make([]bigquery.QueryParameter, 0, len(params))
-		for k, v := range params {
-			q.Parameters = append(q.Parameters, bigquery.QueryParameter{Name: k, Value: v})
-		}
-		job, err := q.Run(ctx)
+		log.Info("executing mysql operation", zap.String("query", query), zap.Any("args", args))
+		_, err := m.db.Exec(query)
 		if err != nil {
-			return err
+			log.Warn("failed to execute mysql operation", zap.Error(err))
 		}
-		status, err := job.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		if err := status.Err(); err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 
 	err := backoff.Retry(retryFunc, backoff.WithContext(m.retryOptions, ctx))
@@ -93,24 +91,16 @@ func (m *ESDataHandler) ESOp(ctx context.Context, query string, params map[strin
 	return err
 }
 
-func (m *ESDataHandler) CreateTable(ctx context.Context, param *api.CreateCollectionParam) error {
-	schema := bigquery.Schema{}
-	for _, field := range param.Schema.Fields {
-		schema = append(schema, &bigquery.FieldSchema{
-			Name: field.Name,
-			Type: bigquery.FieldType(field.DataType),
-		})
-	}
-	metaData := &bigquery.TableMetadata{
-		Schema: schema,
-	}
-	tableRef := m.client.Dataset(param.Database).Table(param.Schema.CollectionName)
-	return tableRef.Create(ctx, metaData)
+func (m *ESDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
+	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", param.Schema.CollectionName, param.Schema.Fields)
+	log.Info("CREATE TABLE", zap.String("query", query))
+	return m.ESOp(ctx, query)
 }
 
-func (m *ESDataHandler) DropTable(ctx context.Context, param *api.DropCollectionParam) error {
-	tableRef := m.client.Dataset(param.Database).Table(param.CollectionName)
-	return tableRef.Delete(ctx)
+func (m *ESDataHandler) DropCollection(ctx context.Context, param *api.DropCollectionParam) error {
+	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", param.CollectionName)
+	log.Info("DROP TABLE", zap.String("query", query))
+	return m.ESOp(ctx, query)
 }
 
 func (m *ESDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
@@ -246,33 +236,41 @@ func (m *ESDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam
 }
 
 func (m *ESDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
-	// BigQuery에서는 데이터셋을 생성하는 방식입니다.
-	dataset := m.client.Dataset(param.DbName)
-	return dataset.Create(ctx, &bigquery.DatasetMetadata{})
+	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", param.DbName)
+	log.Info("CREATE DATABASE", zap.String("query", query))
+	return m.ESOp(ctx, query)
 }
 
 func (m *ESDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
-	// BigQuery에서는 데이터셋을 삭제하는 방식입니다.
-	dataset := m.client.Dataset(param.DbName)
-	return dataset.Delete(ctx)
+	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", param.DbName)
+	log.Info("DROP DATABASE", zap.String("query", query))
+	return m.ESOp(ctx, query)
 }
 
-func (m *ESDataHandler) DescribeTable(ctx context.Context, param *api.DescribeCollectionParam) error {
-	tableRef := m.client.Dataset(param.Database).Table(param.Name)
-	metaData, err := tableRef.Metadata(ctx)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Table: %s, Schema: %v\n", param.Name, metaData.Schema)
-	return nil
+func (m *ESDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
+	query := fmt.Sprintf("DESCRIBE %s", param.Name)
+	log.Info("DESCRIBE", zap.String("query", query))
+	return m.ESOp(ctx, query)
 }
 
 func (m *ESDataHandler) DescribeDatabase(ctx context.Context, param *api.DescribeDatabaseParam) error {
-	dataset := m.client.Dataset(param.Name)
-	metaData, err := dataset.Metadata(ctx)
+	query := "SHOW DATABASES"
+	log.Info(query)
+	rows, err := m.db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Dataset: %s, Location: %s\n", param.Name, metaData.Location)
-	return nil
+	defer rows.Close()
+
+	var dbName string
+	for rows.Next() {
+		err := rows.Scan(&dbName)
+		if err != nil {
+			return err
+		}
+		if dbName == param.Name {
+			return nil
+		}
+	}
+	return errors.Newf("database [%s] not found", param.Name)
 }

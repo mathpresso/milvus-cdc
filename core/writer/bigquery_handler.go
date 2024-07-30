@@ -93,7 +93,7 @@ func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, para
 	return err
 }
 
-func (m *BigQueryDataHandler) CreateTable(ctx context.Context, param *api.CreateCollectionParam) error {
+func (m *BigQueryDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	schema := bigquery.Schema{}
 	for _, field := range param.Schema.Fields {
 		schema = append(schema, &bigquery.FieldSchema{
@@ -108,7 +108,7 @@ func (m *BigQueryDataHandler) CreateTable(ctx context.Context, param *api.Create
 	return tableRef.Create(ctx, metaData)
 }
 
-func (m *BigQueryDataHandler) DropTable(ctx context.Context, param *api.DropCollectionParam) error {
+func (m *BigQueryDataHandler) DropCollection(ctx context.Context, param *api.DropCollectionParam) error {
 	tableRef := m.client.Dataset(param.Database).Table(param.CollectionName)
 	return tableRef.Delete(ctx)
 }
@@ -257,7 +257,7 @@ func (m *BigQueryDataHandler) DropDatabase(ctx context.Context, param *api.DropD
 	return dataset.Delete(ctx)
 }
 
-func (m *BigQueryDataHandler) DescribeTable(ctx context.Context, param *api.DescribeCollectionParam) error {
+func (m *BigQueryDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
 	tableRef := m.client.Dataset(param.Database).Table(param.Name)
 	metaData, err := tableRef.Metadata(ctx)
 	if err != nil {

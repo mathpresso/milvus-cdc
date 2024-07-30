@@ -129,3 +129,24 @@ func BigQueryConnectTimeoutOption(timeout int) config.Option[*BigQueryDataHandle
 		}
 	})
 }
+
+func ESUserOption(username string, password string) config.Option[*ESDataHandler] {
+	return config.OptionFunc[*ESDataHandler](func(object *ESDataHandler) {
+		object.username = username
+		object.password = password
+	})
+}
+
+func ESAddressOption(address string) config.Option[*ESDataHandler] {
+	return config.OptionFunc[*ESDataHandler](func(object *ESDataHandler) {
+		object.address = address
+	})
+}
+
+func ESConnectTimeoutOption(timeout int) config.Option[*ESDataHandler] {
+	return config.OptionFunc[*ESDataHandler](func(object *ESDataHandler) {
+		if timeout > 0 {
+			object.connectTimeout = timeout
+		}
+	})
+}
