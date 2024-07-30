@@ -227,7 +227,7 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 	//string_to_vector('[1,2,3]')
 	query := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUES %s",
 		param.Database, param.CollectionName, join(columns, ","), values)
-	//	log.Info("INSERT", zap.String("query", query))
+	log.Info("INSERT", zap.String("query", query))
 
 	return m.bigqueryOp(ctx, query, nil)
 }
@@ -284,8 +284,6 @@ func (m *BigQueryDataHandler) unmarshalTsMsg(ctx context.Context, msgType common
 
 		insertMsg := msg.(*msgstream.InsertMsg)
 
-		log.Info("insert msg", zap.Any("insertMsg", insertMsg.InsertRequest), zap.Any("insertMsgRows", insertMsg.NumRows))
-		log.Info("msgBytes", zap.Any("msgBytes", msgBytes))
 		tmsg, err := convertInsertMsgToInsertParam(insertMsg)
 		if err != nil {
 			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
