@@ -71,6 +71,7 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 
 	db, err := sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
+		log.Info("failed to connect mysql database", zap.Any("info", cfg.FormatDSN()))
 		return nil, fmt.Errorf("failed to connect mysql database : %v", err)
 	}
 
@@ -161,15 +162,18 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		case *schemapb.FieldData_Vectors:
 			switch vectorData := data.Vectors.Data.(type) {
 			case *schemapb.VectorField_FloatVector:
-				dim := data.Vectors.Dim - 1
+				dim := data.Vectors.Dim
+				cnt := int64(1)
 				var vec []float32
-				for i, v := range vectorData.FloatVector.Data {
+				for _, v := range vectorData.FloatVector.Data {
 					vec = append(vec, v)
 
-					if int64(i)%dim == 0 && i != 0 {
+					if cnt == dim {
 						colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 						vec = []float32{}
+						cnt = 1
 					}
+					cnt++
 				}
 
 				rowValues = append(rowValues, colValues)
