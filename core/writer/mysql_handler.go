@@ -437,6 +437,7 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 			return err
 		}
 
+		param.Database = strings.Split(param.ChannelName, "-")[0]
 		log.Info("replicate message", zap.Any("DbName", param.Database))
 		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), param.Database, msgBytes)
 		if err != nil {

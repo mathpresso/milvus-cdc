@@ -288,7 +288,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 		return strings.ToLower(vChannel)
 	}
 
-	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
+	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, targetInfo.DatabaseName, func(sourceVChannel, targetVChannel string) error {
 		sourcePChannel := toPhysicalChannel(sourceVChannel)
 		targetPChannel := toPhysicalChannel(targetVChannel)
 		channelHandler, err := r.startReadChannel(&model.SourceCollectionInfo{
@@ -344,7 +344,7 @@ func GetVChannelByPChannel(pChannel string, vChannels []string) string {
 	return ""
 }
 
-func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, f func(sourcePChannel, targetPChannel string) error) error {
+func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, targetDBName string, f func(sourcePChannel, targetPChannel string) error) error {
 	if targetDBType == "milvus" {
 		if len(sourcePChannels) != len(targetPChannels) {
 			return errors.New("the lengths of source and target channels are not equal")
@@ -359,7 +359,7 @@ func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []stri
 	} else {
 		targets = make([]string, len(sourcePChannels))
 		for i := 0; i < len(sourcePChannels); i++ {
-			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-dml_%d_v0", targetDBType, i))
+			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-%s-dml_%d_v0", targetDBName, targetDBType, i))
 		}
 	}
 
