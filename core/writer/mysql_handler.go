@@ -220,7 +220,6 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 	//	log.Info("INSERT", zap.String("query", query))
 
 	return m.mysqlOp(ctx, query)
-
 }
 
 func interfaceSliceToStringSlice(input []interface{}) []string {

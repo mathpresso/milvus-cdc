@@ -17,7 +17,7 @@ import (
 	"github.com/zilliztech/milvus-cdc/core/log"
 )
 
-type BigQueryDataHandler struct {
+type ESDataHandler struct {
 	api.DataHandler
 
 	projectID      string
@@ -28,8 +28,8 @@ type BigQueryDataHandler struct {
 }
 
 // NewBigQueryDataHandler options must include ProjectIDOption and CredentialsOption
-func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*BigQueryDataHandler, error) {
-	handler := &BigQueryDataHandler{
+func NewESDataHandler(options ...config.Option[*ESDataHandler]) (*ESDataHandler, error) {
+	handler := &ESDataHandler{
 		connectTimeout: 5,
 		retryOptions:   backoff.NewExponentialBackOff(),
 	}
@@ -49,7 +49,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
 	defer cancel()
 
-	handler.client, err = handler.createBigQueryClient(timeoutContext)
+	handler.client, err = handler.createESClient(timeoutContext)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	return handler, nil
 }
 
-func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
+func (m *ESDataHandler) createESClient(ctx context.Context) (*bigquery.Client, error) {
 	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentialsFile(m.credentials))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
@@ -65,7 +65,7 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigque
 	return client, nil
 }
 
-func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
+func (m *ESDataHandler) ESOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
 		q := m.client.Query(query)
 		q.Parameters = make([]bigquery.QueryParameter, 0, len(params))
@@ -93,7 +93,7 @@ func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, para
 	return err
 }
 
-func (m *BigQueryDataHandler) CreateTable(ctx context.Context, param *api.CreateCollectionParam) error {
+func (m *ESDataHandler) CreateTable(ctx context.Context, param *api.CreateCollectionParam) error {
 	schema := bigquery.Schema{}
 	for _, field := range param.Schema.Fields {
 		schema = append(schema, &bigquery.FieldSchema{
@@ -108,12 +108,12 @@ func (m *BigQueryDataHandler) CreateTable(ctx context.Context, param *api.Create
 	return tableRef.Create(ctx, metaData)
 }
 
-func (m *BigQueryDataHandler) DropTable(ctx context.Context, param *api.DropCollectionParam) error {
+func (m *ESDataHandler) DropTable(ctx context.Context, param *api.DropCollectionParam) error {
 	tableRef := m.client.Dataset(param.Database).Table(param.CollectionName)
 	return tableRef.Delete(ctx)
 }
 
-func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
+func (m *ESDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
 	columns := []string{}
 
 	rowValues := [][]interface{}{}
@@ -175,7 +175,7 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 					vec = append(vec, v)
 
 					if cnt == dim {
-						colValues = append(colValues, fmt.Sprintf("[%v]", join(float32SliceToStringSlice(vec), ",")))
+						colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 						vec = []float32{}
 						cnt = 1
 					} else {
@@ -225,39 +225,39 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		param.Database, param.CollectionName, join(columns, ","), values)
 	//	log.Info("INSERT", zap.String("query", query))
 
-	return m.bigqueryOp(ctx, query, nil)
+	return m.ESOp(ctx, query, nil)
 }
 
-func (m *BigQueryDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
-	query := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE `%s` = @value", param.Database, param.CollectionName, param.Column.Name())
+func (m *ESDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
+	query := fmt.Sprintf("DELETE FROM `%s.%s` WHERE %s = @value", param.Database, param.CollectionName, param.Column.Name())
 	params := map[string]interface{}{"value": param.Column.FieldData()}
-	return m.bigqueryOp(ctx, query, params)
+	return m.ESOp(ctx, query, params)
 }
 
-func (m *BigQueryDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
+func (m *ESDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
 	// BigQuery는 Vector Search Index만을 지원합니다.
 	query := fmt.Sprintf("CREATE OR REPLACE VECTOR INDEX `%s`.%s ON `%s`(embedding_v1) OPTIONS(distance_type='L2',index_type_type='IVF')", param.Database, param.IndexName, param.CollectionName)
-	return m.bigqueryOp(ctx, query, nil)
+	return m.ESOp(ctx, query, nil)
 }
 
-func (m *BigQueryDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
+func (m *ESDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
 	// BigQuery는 인덱스를 지원하지 않습니다.
 	return nil
 }
 
-func (m *BigQueryDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
+func (m *ESDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
 	// BigQuery에서는 데이터셋을 생성하는 방식입니다.
 	dataset := m.client.Dataset(param.DbName)
 	return dataset.Create(ctx, &bigquery.DatasetMetadata{})
 }
 
-func (m *BigQueryDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
+func (m *ESDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
 	// BigQuery에서는 데이터셋을 삭제하는 방식입니다.
 	dataset := m.client.Dataset(param.DbName)
 	return dataset.Delete(ctx)
 }
 
-func (m *BigQueryDataHandler) DescribeTable(ctx context.Context, param *api.DescribeCollectionParam) error {
+func (m *ESDataHandler) DescribeTable(ctx context.Context, param *api.DescribeCollectionParam) error {
 	tableRef := m.client.Dataset(param.Database).Table(param.Name)
 	metaData, err := tableRef.Metadata(ctx)
 	if err != nil {
@@ -267,7 +267,7 @@ func (m *BigQueryDataHandler) DescribeTable(ctx context.Context, param *api.Desc
 	return nil
 }
 
-func (m *BigQueryDataHandler) DescribeDatabase(ctx context.Context, param *api.DescribeDatabaseParam) error {
+func (m *ESDataHandler) DescribeDatabase(ctx context.Context, param *api.DescribeDatabaseParam) error {
 	dataset := m.client.Dataset(param.Name)
 	metaData, err := dataset.Metadata(ctx)
 	if err != nil {
