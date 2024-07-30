@@ -3,7 +3,10 @@ package writer
 import (
 	"context"
 	"fmt"
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -12,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/api/option"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
@@ -255,6 +259,148 @@ func (m *BigQueryDataHandler) DropDatabase(ctx context.Context, param *api.DropD
 	// BigQuery에서는 데이터셋을 삭제하는 방식입니다.
 	dataset := m.client.Dataset(param.DbName)
 	return dataset.Delete(ctx)
+}
+
+func (m *BigQueryDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, dbName string, msgBytes []byte) error {
+	var tsMsg msgstream.TsMsg
+	var err error
+
+	if msgBytes == nil {
+		log.Warn("msgBytes is nil")
+		return errors.New("msgBytes is nil")
+	}
+
+	switch msgType {
+	case commonpb.MsgType_Insert:
+		tsMsg = &msgstream.InsertMsg{}
+
+		msg, err := tsMsg.Unmarshal(msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal ts msg", zap.Error(err))
+			return err
+		}
+
+		log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
+
+		insertMsg := msg.(*msgstream.InsertMsg)
+
+		log.Info("insert msg", zap.Any("insertMsg", insertMsg.InsertRequest), zap.Any("insertMsgRows", insertMsg.NumRows))
+		log.Info("msgBytes", zap.Any("msgBytes", msgBytes))
+		tmsg, err := convertInsertMsgToInsertParam(insertMsg)
+		if err != nil {
+			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
+			return err
+		}
+
+		tmsg.Database = dbName
+		err = m.Insert(ctx, tmsg)
+		if err != nil {
+			log.Warn("failed to unmarshal insert msg", zap.Error(err))
+			return err
+		}
+	case commonpb.MsgType_Delete:
+		tsMsg = &msgstream.DeleteMsg{}
+
+		msg, err := tsMsg.Unmarshal(msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal ts msg", zap.Error(err))
+			return err
+		}
+
+		log.Info("unmarshalTsMsg", zap.Any("msgType", msgType), zap.Any("msg", msg))
+
+		deleteMsg := msg.(*msgstream.DeleteMsg)
+
+		tmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
+		if err != nil {
+			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
+			return err
+		}
+
+		tmsg.Database = dbName
+
+		err = m.Delete(ctx, tmsg)
+		if err != nil {
+			log.Warn("failed to delete", zap.Error(err))
+			return err
+		}
+	case commonpb.MsgType_Upsert:
+		// UpsertMsg는 InsertMsg와 DeleteMsg를 포함하므로, 따로 언마샬링한 후 조립합니다.
+		// tsMsg = &msgstream.UpsertMsg{}
+		insertMsg := &msgstream.InsertMsg{}
+		deleteMsg := &msgstream.DeleteMsg{}
+
+		// msgBytes를 분할하여 각 메시지에 언마샬링합니다. (여기서는 단순히 msgBytes를 나눠서 가정합니다.)
+		half := len(msgBytes) / 2
+		err = proto.Unmarshal(msgBytes[:half], insertMsg)
+		if err != nil {
+			log.Warn("failed to unmarshal insert msg", zap.Error(err))
+			return err
+		}
+
+		imsg, err := convertInsertMsgToInsertParam(insertMsg)
+		if err != nil {
+			log.Warn("failed to convert insert msg to insert param", zap.Error(err))
+			return err
+		}
+
+		err = m.Insert(ctx, imsg)
+		if err != nil {
+			log.Warn("failed to insert", zap.Error(err))
+			return err
+		}
+
+		err = proto.Unmarshal(msgBytes[half:], deleteMsg)
+		if err != nil {
+			return err
+		}
+
+		dmsg, err := convertDeleteMsgToDeleteParam(deleteMsg)
+		if err != nil {
+			log.Warn("failed to convert delete msg to delete param", zap.Error(err))
+			return err
+		}
+
+		err = m.Delete(ctx, dmsg)
+		if err != nil {
+			log.Warn("failed to delete", zap.Error(err))
+			return err
+		}
+	case commonpb.MsgType_TimeTick:
+		return nil
+	default:
+		log.Warn("unsupported message type", zap.Any("msgType", msgType))
+		err = fmt.Errorf("unsupported message type: %v", msgType)
+		return err
+	}
+
+	return nil
+}
+
+func (m *BigQueryDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
+	for i, msgBytes := range param.MsgsBytes {
+		header := &commonpb.MsgHeader{}
+		err := proto.Unmarshal(msgBytes, header)
+		if err != nil {
+			log.Warn("failed to unmarshal msg header", zap.Int("index", i), zap.Error(err))
+			return err
+		}
+
+		if header.GetBase() == nil {
+			log.Warn("msg header base is nil", zap.Int("index", i))
+			return err
+		}
+
+		param.Database = strings.Split(param.ChannelName, "-")[0]
+		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), param.Database, msgBytes)
+		if err != nil {
+			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
+			return err
+		}
+
+	}
+
+	return nil
 }
 
 func (m *BigQueryDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
