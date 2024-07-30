@@ -73,6 +73,7 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 		return nil, fmt.Errorf("failed to create connector: %v", err)
 	}
 
+	log.Info("connecting to mysql database", zap.Any("connector", connector))
 	db := sql.OpenDB(connector)
 
 	if err := db.Ping(); err != nil {
