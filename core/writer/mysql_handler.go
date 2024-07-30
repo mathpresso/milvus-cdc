@@ -85,7 +85,7 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...interface{}) error {
 	retryFunc := func() error {
 		log.Info("executing mysql operation", zap.String("query", query), zap.Any("args", args))
-		_, err := m.db.ExecContext(ctx, query, args...)
+		_, err := m.db.Exec(query)
 		if err != nil {
 			log.Warn("failed to execute mysql operation", zap.Error(err))
 		}
@@ -337,7 +337,6 @@ func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.
 		}
 
 		tmsg.Database = dbName
-		log.Info("insert msg param", zap.Any("insertMsg", tmsg))
 		err = m.Insert(ctx, tmsg)
 		if err != nil {
 			log.Warn("failed to unmarshal insert msg", zap.Error(err))
@@ -437,7 +436,6 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 		}
 
 		param.Database = strings.Split(param.ChannelName, "-")[0]
-		log.Info("replicate message", zap.Any("DbName", param.Database))
 		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), param.Database, msgBytes)
 		if err != nil {
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
