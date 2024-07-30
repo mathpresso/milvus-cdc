@@ -42,7 +42,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 		return nil, errors.New("empty BigQuery project ID")
 	}
 	if handler.credentials == "" {
-		return nil, errors.New("empty BigQuery credentials")
+		log.Warn("empty BigQuery credentials")
 	}
 
 	var err error
