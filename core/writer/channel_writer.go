@@ -183,7 +183,6 @@ func (c *ChannelWriter) HandleReplicateMessage(ctx context.Context, channelName 
 		}
 		msgBytesArr = append(msgBytesArr, msgBytes.([]byte))
 	}
-	log.Info("Message Pack", zap.Any("msgPack", msgPack))
 
 	replicateMessageParam := &api.ReplicateMessageParam{
 		MsgBaseParam:   api.MsgBaseParam{Base: &commonpb.MsgBase{ReplicateInfo: &commonpb.ReplicateInfo{IsReplicate: true}}},
