@@ -172,8 +172,9 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 						colValues = append(colValues, fmt.Sprintf("string_to_vector('[%v]')", join(float32SliceToStringSlice(vec), ",")))
 						vec = []float32{}
 						cnt = 1
+					} else {
+						cnt++
 					}
-					cnt++
 				}
 
 				rowValues = append(rowValues, colValues)
