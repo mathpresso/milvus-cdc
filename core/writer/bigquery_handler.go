@@ -40,7 +40,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 		option.Apply(handler)
 	}
 	if handler.projectID == "" {
-		return nil, errors.New("empty BigQuery project ID")
+		return nil, fmt.Errorf("empty BigQuery project ID")
 	}
 
 	var err error
