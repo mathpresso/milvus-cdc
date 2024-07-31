@@ -37,6 +37,9 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	}
 	handler.retryOptions.MaxElapsedTime = 1 * time.Minute // 설정된 최대 재시도 시간
 
+	for _, option := range options {
+		option.Apply(handler)
+	}
 	if handler.projectID == "" {
 		return nil, errors.New("empty BigQuery project ID")
 	}
@@ -54,7 +57,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	log.Info("projectID", zap.String("projectID", m.projectID))
+	log.Info("createBigQueryClient", zap.String("projectID", m.projectID))
 	client, err := bigquery.NewClient(ctx, m.projectID)
 	if err != nil {
 		log.Warn("failed to create BigQuery client", zap.Error(err))
