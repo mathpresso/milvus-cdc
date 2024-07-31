@@ -67,7 +67,7 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigque
 	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
 	insecureTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: false,
 		},
 	}
 	httpClient := &http.Client{
