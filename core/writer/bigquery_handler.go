@@ -66,10 +66,12 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
 	creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), secretmanager.DefaultAuthScopes()...)
 	if err != nil {
-		// TODO: handle error.
+		log.Warn("failed to get crediential of client", zap.Error(err))
+		return nil, fmt.Errorf("failed to get crediential of client: %v", err)
 	}
 	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentials(creds))
 	if err != nil {
+		log.Warn("failed to create BigQuery client", zap.Error(err))
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
 	return client, nil
