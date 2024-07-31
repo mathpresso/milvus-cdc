@@ -35,16 +35,10 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 		connectTimeout: 5,
 		retryOptions:   backoff.NewExponentialBackOff(),
 	}
-	handler.retryOptions.MaxElapsedTime = 2 * time.Minute // 설정된 최대 재시도 시간
+	handler.retryOptions.MaxElapsedTime = 1 * time.Minute // 설정된 최대 재시도 시간
 
-	for _, option := range options {
-		option.Apply(handler)
-	}
 	if handler.projectID == "" {
 		return nil, errors.New("empty BigQuery project ID")
-	}
-	if handler.credentials == "" {
-		log.Warn("empty BigQuery credentials")
 	}
 
 	var err error
@@ -60,6 +54,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
+	log.Info("projectID", zap.String("projectID", m.projectID))
 	client, err := bigquery.NewClient(ctx, m.projectID)
 	if err != nil {
 		log.Warn("failed to create BigQuery client", zap.Error(err))
