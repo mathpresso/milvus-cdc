@@ -2,10 +2,13 @@ package writer
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"google.golang.org/api/option"
+	"net/http"
 	"strings"
 	"time"
 
@@ -60,12 +63,39 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
+	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
+	insecureTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	httpClient := &http.Client{
+		Transport: insecureTransport,
+	}
+
+	// 클라이언트 옵션 설정
+	clientOptions := []option.ClientOption{
+		option.WithHTTPClient(httpClient),
+	}
+
+	// BigQuery 클라이언트 생성
+	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+	}
+
+	return client, nil
+}
+
+/*
+func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
 	client, err := bigquery.NewClient(ctx, m.projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
 	return client, nil
 }
+*/
 
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
