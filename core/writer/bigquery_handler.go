@@ -2,27 +2,32 @@ package writer
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"net/http"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
+	"go.uber.org/zap"
+	"google.golang.org/api/option"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
-	"go.uber.org/zap"
 )
 
 type BigQueryDataHandler struct {
 	api.DataHandler
 
 	projectID      string
+	credentials    string
 	connectTimeout int
 	client         *bigquery.Client
 	retryOptions   *backoff.ExponentialBackOff
@@ -34,13 +39,13 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 		connectTimeout: 5,
 		retryOptions:   backoff.NewExponentialBackOff(),
 	}
-	handler.retryOptions.MaxElapsedTime = 1 * time.Minute // 설정된 최대 재시도 시간
+	handler.retryOptions.MaxElapsedTime = 2 * time.Minute // 설정된 최대 재시도 시간
 
 	for _, option := range options {
 		option.Apply(handler)
 	}
 	if handler.projectID == "" {
-		return nil, fmt.Errorf("empty BigQuery project ID")
+		return nil, errors.New("empty BigQuery project ID")
 	}
 
 	var err error
@@ -55,9 +60,50 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	return handler, nil
 }
 
+/*
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	log.Info("createBigQueryClient", zap.String("projectID", m.projectID))
-	client, err := bigquery.NewClient(ctx, m.projectID)
+	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
+	insecureTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: false,
+		},
+	}
+	httpClient := &http.Client{
+		Transport: insecureTransport,
+	}
+
+	// 클라이언트 옵션 설정
+	clientOptions := []option.ClientOption{
+		option.WithHTTPClient(httpClient),
+	}
+
+	// BigQuery 클라이언트 생성
+	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+	}
+
+	return client, nil
+}
+*/
+
+func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
+	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
+	insecureTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	httpClient := &http.Client{
+		Transport: insecureTransport,
+	}
+
+	// 클라이언트 옵션 설정
+	clientOptions := []option.ClientOption{
+		option.WithHTTPClient(httpClient),
+	}
+
+	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
 	if err != nil {
 		log.Warn("failed to create BigQuery client", zap.Error(err))
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
@@ -68,7 +114,10 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigque
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
 		q := m.client.Query(query)
-
+		q.Parameters = make([]bigquery.QueryParameter, 0, len(params))
+		for k, v := range params {
+			q.Parameters = append(q.Parameters, bigquery.QueryParameter{Name: k, Value: v})
+		}
 		job, err := q.Run(ctx)
 		if err != nil {
 			log.Warn("failed to run query", zap.Error(err))
