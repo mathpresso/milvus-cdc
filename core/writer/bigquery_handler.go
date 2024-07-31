@@ -1,13 +1,13 @@
 package writer
 
 import (
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
-	"golang.org/x/oauth2/google"
+	"net/http"
 	"strings"
 	"time"
 
@@ -64,19 +64,45 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), secretmanager.DefaultAuthScopes()...)
-	if err != nil {
-		log.Warn("failed to get crediential of client", zap.Error(err))
-		return nil, fmt.Errorf("failed to get crediential of client: %v", err)
+	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
+	insecureTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
-	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentials(creds))
+	httpClient := &http.Client{
+		Transport: insecureTransport,
+	}
+
+	// 클라이언트 옵션 설정
+	clientOptions := []option.ClientOption{
+		option.WithHTTPClient(httpClient),
+	}
+
+	// BigQuery 클라이언트 생성
+	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
 	if err != nil {
-		log.Warn("failed to create BigQuery client", zap.Error(err))
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
+
 	return client, nil
 }
 
+/*
+	func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
+		creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), bigquery.Scope)
+		if err != nil {
+			log.Warn("failed to get crediential of client", zap.Error(err))
+			return nil, fmt.Errorf("failed to get crediential of client: %v", err)
+		}
+		client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentials(creds))
+		if err != nil {
+			log.Warn("failed to create BigQuery client", zap.Error(err))
+			return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+		}
+		return client, nil
+	}
+*/
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
 		q := m.client.Query(query)
