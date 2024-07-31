@@ -1,25 +1,26 @@
 package writer
 
 import (
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
-	"google.golang.org/api/option"
-	"net/http"
+	"golang.org/x/oauth2/google"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
+	"go.uber.org/zap"
+	"google.golang.org/api/option"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
-	"go.uber.org/zap"
 )
 
 type BigQueryDataHandler struct {
@@ -63,39 +64,16 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
-	insecureTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	httpClient := &http.Client{
-		Transport: insecureTransport,
-	}
-
-	// 클라이언트 옵션 설정
-	clientOptions := []option.ClientOption{
-		option.WithHTTPClient(httpClient),
-	}
-
-	// BigQuery 클라이언트 생성
-	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
+	creds, err := google.CredentialsFromJSON(ctx, []byte("JSON creds"), secretmanager.DefaultAuthScopes()...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+		// TODO: handle error.
 	}
-
-	return client, nil
-}
-
-/*
-func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	client, err := bigquery.NewClient(ctx, m.projectID)
+	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentials(creds))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
 	return client, nil
 }
-*/
 
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
