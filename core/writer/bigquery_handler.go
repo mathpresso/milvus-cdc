@@ -23,7 +23,6 @@ type BigQueryDataHandler struct {
 	api.DataHandler
 
 	projectID      string
-	credentials    string
 	connectTimeout int
 	client         *bigquery.Client
 	retryOptions   *backoff.ExponentialBackOff
