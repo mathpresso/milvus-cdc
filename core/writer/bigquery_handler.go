@@ -78,6 +78,7 @@ func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, para
 		}
 		job, err := q.Run(ctx)
 		if err != nil {
+			log.Warn("failed to run query", zap.Error(err))
 			return err
 		}
 		status, err := job.Wait(ctx)
