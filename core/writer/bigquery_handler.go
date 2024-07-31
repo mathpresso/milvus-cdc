@@ -12,13 +12,11 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
-	"go.uber.org/zap"
-	"google.golang.org/api/option"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
 	"github.com/zilliztech/milvus-cdc/core/config"
 	"github.com/zilliztech/milvus-cdc/core/log"
+	"go.uber.org/zap"
 )
 
 type BigQueryDataHandler struct {
@@ -62,7 +60,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 }
 
 func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	client, err := bigquery.NewClient(ctx, m.projectID, option.WithCredentialsFile(m.credentials))
+	client, err := bigquery.NewClient(ctx, m.projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
