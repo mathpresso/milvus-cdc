@@ -547,15 +547,30 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	ctx := context.TODO()
 	timeoutCtx, cancelFunc := context.WithTimeout(ctx, time.Duration(milvusConnectParam.ConnectTimeout)*time.Second)
 
-	milvusClient, err := cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
-		Address:      milvusAddress,
-		Username:     milvusConnectParam.Username,
-		Password:     milvusConnectParam.Password,
-		EnableTLS:    milvusConnectParam.EnableTLS,
-		DialConfig:   milvusConnectParam.DialConfig,
-		ProjectId:    milvusConnectParam.ProjectId,
-		TargetDBType: info.MilvusConnectParam.TargetDBType,
-	})
+	var milvusClient api.TargetAPI
+	var err error
+
+	log.Info("milvus connect param", zap.Any("milvus connect param", milvusConnectParam))
+	if strings.ToLower(info.MilvusConnectParam.TargetDBType) == "milvus" {
+		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+			Address:      milvusAddress,
+			Username:     milvusConnectParam.Username,
+			Password:     milvusConnectParam.Password,
+			EnableTLS:    milvusConnectParam.EnableTLS,
+			DialConfig:   milvusConnectParam.DialConfig,
+			ProjectId:    milvusConnectParam.ProjectId,
+			TargetDBType: info.MilvusConnectParam.TargetDBType,
+		})
+	} else {
+		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+			Address:      milvusAddress,
+			Username:     milvusConnectParam.Username,
+			Password:     milvusConnectParam.Password,
+			EnableTLS:    milvusConnectParam.EnableTLS,
+			ProjectId:    milvusConnectParam.ProjectId,
+			TargetDBType: info.MilvusConnectParam.TargetDBType,
+		})
+	}
 	cancelFunc()
 
 	if err != nil {
