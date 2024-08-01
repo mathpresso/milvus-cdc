@@ -60,8 +60,9 @@ func (m *ClientResourceManager) newBigQueryClient(ctx context.Context, projectId
 
 func (m *ClientResourceManager) GetBigQueryClient(ctx context.Context, projectId, database string) (*bigquery.Client, error) {
 	if database == "" {
-		database = DefaultBigQueryDbName
+		return nil, errors.New("empty database name")
 	}
+
 	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("project_id", projectId))
 	res, err := m.manager.Get(BigQueryClientResourceTyp,
 		getBigQueryClientResourceName(projectId, database),
