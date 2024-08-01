@@ -250,7 +250,23 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		param.Database, param.CollectionName, join(columns, ","), values)
 	log.Info("INSERT", zap.String("query", query))
 
-	return m.bigqueryOp(ctx, query, nil)
+	q := m.client.Query(query)
+
+	job, err := q.Run(ctx)
+	if err != nil {
+		log.Warn("failed to run query", zap.Error(err))
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	return nil
+
+	//return m.bigqueryOp(ctx, query, nil)
 }
 
 func (m *BigQueryDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
