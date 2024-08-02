@@ -39,22 +39,27 @@ const (
 	MySQLClientResourceTyp = "mysql_client"
 	MySQLClientExpireTime  = 30 * time.Second
 	DefaultMySQLDbName     = "information_schema"
+	connectionTimeout      = 1
 )
 
 func (m *ClientResourceManager) newMySQLClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
-		c, err := mysql.NewConnector(&mysql.Config{
-			Addr:   address,
-			User:   strings.Split(apiKey, ":")[0],
-			Passwd: strings.Split(apiKey, ":")[1],
-			DBName: database,
-		})
+
+		cfg := mysql.Config{
+			Addr:                 address,
+			User:                 strings.Split(apiKey, ":")[0],
+			Passwd:               strings.Split(apiKey, ":")[1],
+			Net:                  "tcp",
+			AllowNativePasswords: true,
+			Timeout:              time.Duration(connectionTimeout) * time.Second,
+		}
+
+		db, err := sql.Open("mysql", cfg.FormatDSN())
 		if err != nil {
 			log.Warn("fail to new the mysql client", zap.String("database", database), zap.String("address", address), zap.Error(err))
 			return nil, err
 		}
 
-		db := sql.OpenDB(c)
 		res := resource.NewSimpleResource(db, MySQLClientResourceTyp, fmt.Sprintf("%s:%s", address, database), MySQLClientExpireTime, func() {
 			_ = db.Close()
 		})

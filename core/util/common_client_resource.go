@@ -38,3 +38,13 @@ func GetBigQueryClientManager() *ClientResourceManager {
 	})
 	return clientManager
 }
+
+func GetMySqlClientManager() *ClientResourceManager {
+	clientManagerOnce.Do(func() {
+		manager := resource.NewManager(0, 0, nil)
+		clientManager = &ClientResourceManager{
+			manager: manager,
+		}
+	})
+	return clientManager
+}

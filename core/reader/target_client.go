@@ -44,7 +44,7 @@ type TargetClient struct {
 	milvusClient   client.Client
 	config         TargetConfig
 	mysqlClient    driver.Connector
-	bigqueryClient bigquery.Client
+	bigqueryClient *bigquery.Client
 }
 
 type TargetConfig struct {
