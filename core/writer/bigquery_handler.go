@@ -49,50 +49,16 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
 	defer cancel()
 
-	err = handler.createBigQueryClient(timeoutContext)
+	err = handler.bigqueryOp(timeoutContext, func(bigquery *bigquery.Client) error {
+		return nil
+	})
 	if err != nil {
+		log.Warn("fail to new the milvus client", zap.Error(err))
 		return nil, err
 	}
+	handler.retryOptions = util.GetRetryOptions(config.GetCommonConfig().Retry)
 
 	return handler, nil
-}
-
-/*
-func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	// TLS 인증서 검증을 비활성화하는 HTTP 클라이언트 설정
-	insecureTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: false,
-		},
-	}
-	httpClient := &http.Client{
-		Transport: insecureTransport,
-	}
-
-	// 클라이언트 옵션 설정
-	clientOptions := []option.ClientOption{
-		option.WithHTTPClient(httpClient),
-	}
-
-	// BigQuery 클라이언트 생성
-	client, err := bigquery.NewClient(ctx, m.projectID, clientOptions...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
-	}
-
-	return client, nil
-}
-*/
-
-func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (err error) {
-	m.client, err = bigquery.NewClient(ctx, m.projectID)
-	if err != nil {
-		log.Warn("failed to create BigQuery client", zap.Error(err))
-		return fmt.Errorf("failed to create BigQuery client: %v", err)
-	}
-
-	log.Info("BigQuery client created", zap.String("projectID", m.projectID))
-	return nil
 }
 
 func executeQuery(ctx context.Context, bigqueryClient *bigquery.Client, query string) error {
