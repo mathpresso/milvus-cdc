@@ -48,7 +48,7 @@ func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*Bi
 	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
 	defer cancel()
 
-	handler.client, err = handler.createBigQueryClient(timeoutContext)
+	err = handler.createBigQueryClient(timeoutContext)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +83,15 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigque
 }
 */
 
-func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (*bigquery.Client, error) {
-	client, err := bigquery.NewClient(ctx, m.projectID)
+func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (err error) {
+	m.client, err = bigquery.NewClient(ctx, m.projectID)
 	if err != nil {
 		log.Warn("failed to create BigQuery client", zap.Error(err))
-		return nil, fmt.Errorf("failed to create BigQuery client: %v", err)
+		return fmt.Errorf("failed to create BigQuery client: %v", err)
 	}
-	return client, nil
+
+	log.Info("BigQuery client created", zap.String("projectID", m.projectID))
+	return nil
 }
 
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
@@ -250,23 +252,7 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		param.Database, param.CollectionName, join(columns, ","), values)
 	log.Info("INSERT", zap.String("query", query))
 
-	q := m.client.Query(query)
-
-	job, err := q.Run(ctx)
-	if err != nil {
-		log.Warn("failed to run query", zap.Error(err))
-		return err
-	}
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return err
-	}
-	if err := status.Err(); err != nil {
-		return err
-	}
-	return nil
-
-	//return m.bigqueryOp(ctx, query, nil)
+	return m.bigqueryOp(ctx, query, nil)
 }
 
 func (m *BigQueryDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
@@ -413,6 +399,7 @@ func (m *BigQueryDataHandler) unmarshalTsMsg(ctx context.Context, msgType common
 }
 
 func (m *BigQueryDataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
+	param.Database = strings.Split(param.ChannelName, "-")[0]
 	for i, msgBytes := range param.MsgsBytes {
 		header := &commonpb.MsgHeader{}
 		err := proto.Unmarshal(msgBytes, header)
@@ -426,7 +413,6 @@ func (m *BigQueryDataHandler) ReplicateMessage(ctx context.Context, param *api.R
 			return err
 		}
 
-		param.Database = strings.Split(param.ChannelName, "-")[0]
 		err = m.unmarshalTsMsg(ctx, header.GetBase().GetMsgType(), param.Database, msgBytes)
 		if err != nil {
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
