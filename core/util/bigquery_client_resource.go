@@ -42,9 +42,7 @@ const (
 func (m *ClientResourceManager) newBigQueryClient(ctx context.Context, projectId string) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
 
-		c, err := bigquery.NewClient(ctx,
-			projectId,
-		)
+		c, err := bigquery.NewClient(ctx, projectId)
 		if err != nil {
 			log.Warn("fail to new the bigquery client", zap.String("project_id", projectId), zap.Error(err))
 			return nil, err
@@ -65,7 +63,7 @@ func (m *ClientResourceManager) GetBigQueryClient(ctx context.Context, projectId
 	}
 	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("project_id", projectId))
 	res, err := m.manager.Get(BigQueryClientResourceTyp,
-		getBigQueryClientResourceName(projectId, database),
+		getBigQueryClientResourceName(projectId),
 		m.newBigQueryClient(ctx, projectId))
 	if err != nil {
 		ctxLog.Error("fail to get bigquery client", zap.Error(err))
@@ -78,6 +76,6 @@ func (m *ClientResourceManager) GetBigQueryClient(ctx context.Context, projectId
 	return nil, errors.New("invalid resource object")
 }
 
-func getBigQueryClientResourceName(projectId, database string) string {
-	return fmt.Sprintf("%s:%s", projectId, database)
+func getBigQueryClientResourceName(projectId string) string {
+	return fmt.Sprintf("%s", projectId)
 }

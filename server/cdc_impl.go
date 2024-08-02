@@ -551,7 +551,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	var err error
 
 	log.Info("milvus connect param", zap.Any("milvus connect param", milvusConnectParam))
-	if strings.ToLower(info.MilvusConnectParam.TargetDBType) == "milvus" {
+	if strings.ToLower(milvusConnectParam.TargetDBType) == "milvus" {
 		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
 			Address:      milvusAddress,
 			Username:     milvusConnectParam.Username,
@@ -559,7 +559,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			EnableTLS:    milvusConnectParam.EnableTLS,
 			DialConfig:   milvusConnectParam.DialConfig,
 			ProjectId:    milvusConnectParam.ProjectId,
-			TargetDBType: info.MilvusConnectParam.TargetDBType,
+			TargetDBType: milvusConnectParam.TargetDBType,
 		})
 	} else {
 		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
@@ -568,7 +568,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			Password:     milvusConnectParam.Password,
 			EnableTLS:    milvusConnectParam.EnableTLS,
 			ProjectId:    milvusConnectParam.ProjectId,
-			TargetDBType: info.MilvusConnectParam.TargetDBType,
+			TargetDBType: milvusConnectParam.TargetDBType,
 		})
 	}
 	cancelFunc()
@@ -579,8 +579,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	}
 
 	taskLog.Info("taskInfo", zap.Any("taskInfo", info))
-	taskLog.Info("target db type", zap.Any("target db type", info.MilvusConnectParam.TargetDBType))
-	taskLog.Info("milvusClient", zap.Any("milvusClient", milvusClient))
+	taskLog.Info("target db type", zap.Any("target db type", milvusConnectParam.TargetDBType))
 
 	sourceConfig := e.config.SourceConfig
 	etcdServerConfig := GetEtcdServerConfigFromSourceConfig(sourceConfig)
