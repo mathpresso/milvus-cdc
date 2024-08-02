@@ -50,7 +50,7 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 
 	var err error
 
-	handler.db, err = handler.createDBConnection(handler.connectTimeout)
+	err = handler.createDBConnection(handler.connectTimeout)
 	if err != nil {
 		log.Error("failed to create mysql connection", zap.Error(err))
 		return nil, err
@@ -59,7 +59,7 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 	return handler, nil
 }
 
-func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, error) {
+func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (err error) {
 	cfg := mysql.Config{
 		Addr:                 m.address,
 		User:                 m.username,
@@ -69,13 +69,13 @@ func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (*sql.DB, e
 		Timeout:              time.Duration(connectionTimeout) * time.Second,
 	}
 
-	db, err := sql.Open("mysql", cfg.FormatDSN())
+	m.db, err = sql.Open("mysql", cfg.FormatDSN())
 	if err != nil {
 		log.Info("failed to connect mysql database", zap.Any("info", cfg.FormatDSN()))
-		return nil, fmt.Errorf("failed to connect mysql database : %v", err)
+		return fmt.Errorf("failed to connect mysql database : %v", err)
 	}
 
-	return db, nil
+	return nil
 }
 
 func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...interface{}) error {

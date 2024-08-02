@@ -6,11 +6,12 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"github.com/milvus-io/milvus/pkg/util/retry"
+	"github.com/zilliztech/milvus-cdc/core/util"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/proto"
 	"github.com/zilliztech/milvus-cdc/core/api"
@@ -26,16 +27,16 @@ type BigQueryDataHandler struct {
 	//	credentials    string
 	connectTimeout int
 	client         *bigquery.Client
-	retryOptions   *backoff.ExponentialBackOff
+	retryOptions   []retry.Option
 }
 
 // NewBigQueryDataHandler options must include ProjectIDOption and CredentialsOption
 func NewBigQueryDataHandler(options ...config.Option[*BigQueryDataHandler]) (*BigQueryDataHandler, error) {
 	handler := &BigQueryDataHandler{
 		connectTimeout: 5,
-		retryOptions:   backoff.NewExponentialBackOff(),
 	}
-	handler.retryOptions.MaxElapsedTime = 2 * time.Minute // 설정된 최대 재시도 시간
+
+	handler.retryOptions = util.GetRetryOptions(config.GetCommonConfig().Retry)
 
 	for _, option := range options {
 		option.Apply(handler)
@@ -94,33 +95,78 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (err err
 	return nil
 }
 
-func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
-	retryFunc := func() error {
-		query = "select count(*) from `cdctest`.`replica_collection`"
-		q := m.client.Query(query)
+func executeQuery(ctx context.Context, bigqueryClient *bigquery.Client, query string) error {
+	q := bigqueryClient.Query(query)
 
-		job, err := q.Run(ctx)
-		if err != nil {
-			log.Warn("failed to run query", zap.Error(err))
+	job, err := q.Run(ctx)
+	if err != nil {
+		log.Warn("failed to run query", zap.Error(err))
+		return err
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return err
+	}
+	if err := status.Err(); err != nil {
+		return err
+	}
+	return nil
+
+}
+func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, f func(bigqueryClient *bigquery.Client) error) error {
+	retryBigQueryFunc := func(c *bigquery.Client) error {
+		// TODO Retryable and non-retryable errors should be distinguished
+		var err error
+		retryErr := retry.Do(ctx, func() error {
+			err = f(c)
+			return err
+		}, m.retryOptions...)
+		if retryErr != nil && err != nil {
 			return err
 		}
-		status, err := job.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		if err := status.Err(); err != nil {
-			return err
+		if retryErr != nil {
+			return retryErr
 		}
 		return nil
 	}
 
-	err := backoff.Retry(retryFunc, backoff.WithContext(m.retryOptions, ctx))
+	bigqueryClient, err := util.GetBigQueryClientManager().GetBigQueryClient(ctx, m.projectID, "")
 	if err != nil {
-		log.Warn("retry operation failed", zap.Error(err))
+		log.Warn("fail to get bigquery client", zap.Error(err))
+		return err
 	}
-	return err
+
+	return retryBigQueryFunc(bigqueryClient)
 }
 
+/*
+	func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
+		retryFunc := func() error {
+
+			q := m.client.Query(query)
+
+			job, err := q.Run(ctx)
+			if err != nil {
+				log.Warn("failed to run query", zap.Error(err))
+				return err
+			}
+			status, err := job.Wait(ctx)
+			if err != nil {
+				return err
+			}
+			if err := status.Err(); err != nil {
+				return err
+			}
+			return nil
+		}
+
+		err := backoff.Retry(retryFunc, backoff.WithContext(m.retryOptions, ctx))
+		if err != nil {
+			log.Warn("retry operation failed", zap.Error(err))
+		}
+		return err
+	}
+*/
 func (m *BigQueryDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	schema := bigquery.Schema{}
 	for _, field := range param.Schema.Fields {
@@ -253,19 +299,31 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		param.Database, param.CollectionName, join(columns, ","), values)
 	log.Info("INSERT", zap.String("query", query))
 
-	return m.bigqueryOp(ctx, query, nil)
+	log.Info("insert request", zap.String("collection", param.CollectionName), zap.Any("columns", param.Columns))
+	return m.bigqueryOp(ctx, func(bigqueryClient *bigquery.Client) error {
+		err := executeQuery(ctx, bigqueryClient, query)
+		return err
+	})
+
+	//return m.bigqueryOp(ctx, executeQuery(ctx context.Context, bigqueryClient *bigquery.Client, query string))
 }
 
 func (m *BigQueryDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
 	query := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE `%s` = @value", param.Database, param.CollectionName, param.Column.Name())
 	//params := map[string]interface{}{"value": param.Column.FieldData()}
-	return m.bigqueryOp(ctx, query, nil)
+	return m.bigqueryOp(ctx, func(bigqueryClient *bigquery.Client) error {
+		err := executeQuery(ctx, bigqueryClient, query)
+		return err
+	})
 }
 
 func (m *BigQueryDataHandler) CreateIndex(ctx context.Context, param *api.CreateIndexParam) error {
 	// BigQuery는 Vector Search Index만을 지원합니다.
 	query := fmt.Sprintf("CREATE OR REPLACE VECTOR INDEX `%s`.%s ON `%s`(embedding_v1) OPTIONS(distance_type='L2',index_type_type='IVF')", param.Database, param.IndexName, param.CollectionName)
-	return m.bigqueryOp(ctx, query, nil)
+	return m.bigqueryOp(ctx, func(bigqueryClient *bigquery.Client) error {
+		err := executeQuery(ctx, bigqueryClient, query)
+		return err
+	})
 }
 
 func (m *BigQueryDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
