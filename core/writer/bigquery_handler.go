@@ -96,7 +96,7 @@ func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, f func(bigqueryCli
 		return nil
 	}
 
-	bigqueryClient, err := util.GetBigQueryClientManager().GetBigQueryClient(ctx, m.projectID, "")
+	bigqueryClient, err := util.GetBigQueryClientManager().GetBigQueryClient(ctx, m.projectID)
 	if err != nil {
 		log.Warn("fail to get bigquery client", zap.Error(err))
 		return err

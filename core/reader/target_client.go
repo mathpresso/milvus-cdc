@@ -76,7 +76,7 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 			return nil, err
 		}
 	} else if strings.ToLower(targetClient.config.TargetDBType) == "bigquery" {
-		_, err := targetClient.GetBigQuery(ctx, "")
+		_, err := targetClient.GetBigQuery(ctx)
 		if err != nil {
 			log.Warn("fail to new target client", zap.String("address", config.ProjectId), zap.Error(err))
 			return nil, err
@@ -104,15 +104,15 @@ func (t *TargetClient) GetMySQL(ctx context.Context, databaseName string) (*sql.
 	if apiKey == "" {
 		apiKey = util.GetAPIKey(t.config.Username, t.config.Password)
 	}
-	mysqlClient, err := util.GetMilvusClientManager().GetMySQLClient(ctx, t.config.Address, apiKey, databaseName, t.config.EnableTLS, t.config.DialConfig)
+	mysqlClient, err := util.GetMySqlClientManager().GetMySQLClient(ctx, t.config.Address, apiKey, databaseName, t.config.EnableTLS, t.config.DialConfig)
 	if err != nil {
 		return nil, err
 	}
 	return mysqlClient, nil
 }
 
-func (t *TargetClient) GetBigQuery(ctx context.Context, databaseName string) (*bigquery.Client, error) {
-	bigqueryClient, err := util.GetMilvusClientManager().GetBigQueryClient(ctx, t.config.ProjectId, databaseName)
+func (t *TargetClient) GetBigQuery(ctx context.Context) (*bigquery.Client, error) {
+	bigqueryClient, err := util.GetBigQueryClientManager().GetBigQueryClient(ctx, t.config.ProjectId)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +280,7 @@ func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, data
 	} else if strings.ToLower(t.config.TargetDBType) == "bigquery" {
 		dbLog := log.With(zap.String("table", collectionName), zap.String("database", databaseName))
 
-		dbBigQuery, err := t.GetBigQuery(ctx, "")
+		dbBigQuery, err := t.GetBigQuery(ctx)
 		if err != nil {
 			dbLog.Warn("fail to mysql list tables", zap.String("connect_db", databaseName), zap.Error(err))
 			return "", err
