@@ -96,6 +96,7 @@ func (m *BigQueryDataHandler) createBigQueryClient(ctx context.Context) (err err
 
 func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
 	retryFunc := func() error {
+		query = "select count(*) from `cdctest`.`replica_collection`"
 		q := m.client.Query(query)
 
 		job, err := q.Run(ctx)
