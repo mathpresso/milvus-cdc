@@ -1,3 +1,5 @@
+RUN apt-get update && apt-get install -y ca-certificates
+
 FROM  golang:1.21 AS builder
 ENV CGO_ENABLED=1
 ARG GIT_COMMIT_ARG
