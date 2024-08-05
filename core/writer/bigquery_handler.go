@@ -238,9 +238,9 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 	for rowCnt := 0; rowCnt < len(rowValues[0]); rowCnt++ {
 		for colNo, _ := range columns {
 			if colNo == 0 {
-				value = fmt.Sprintf("(%s", fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
+				value = fmt.Sprintf("(%s", fmt.Sprintf("%v", rowValues[colNo][rowCnt]))
 			} else {
-				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("'%v'", rowValues[colNo][rowCnt]))
+				value = fmt.Sprintf("%s,%s", value, fmt.Sprintf("%v", rowValues[colNo][rowCnt]))
 			}
 		}
 		value = fmt.Sprintf("%s)", value)
