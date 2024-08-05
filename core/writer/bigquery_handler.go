@@ -153,7 +153,7 @@ func (m *BigQueryDataHandler) DropCollection(ctx context.Context, param *api.Dro
 	return tableRef.Delete(ctx)
 }
 
-func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
+func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam) (err error) {
 	columns := []string{}
 
 	rowValues := [][]interface{}{}
@@ -232,7 +232,8 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		}
 	}
 
-	var value, values string
+	var value string
+	var values []string
 
 	for rowCnt := 0; rowCnt < len(rowValues[0]); rowCnt++ {
 		for colNo, _ := range columns {
@@ -253,25 +254,25 @@ func (m *BigQueryDataHandler) Insert(ctx context.Context, param *api.InsertParam
 		}
 		value = fmt.Sprintf("%s)", value)
 
-		if rowCnt == 0 {
-			values = fmt.Sprintf("%s", value)
-		} else {
-			values = fmt.Sprintf("%s,%s", values, value)
+		values = append(values, value)
+	}
+
+	for _, v := range values {
+		query := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUES %s",
+			param.Database, param.CollectionName, join(columns, ","), v)
+		log.Info("INSERT", zap.String("query", query))
+
+		err = m.bigqueryOp(ctx, func(bigqueryClient *bigquery.Client) error {
+			inerr := executeQuery(ctx, bigqueryClient, query)
+			return inerr
+		})
+
+		if err != nil {
+			return err
 		}
 	}
 
-	//string_to_vector('[1,2,3]')
-	query := fmt.Sprintf("INSERT INTO `%s`.`%s` (%s) VALUES %s",
-		param.Database, param.CollectionName, join(columns, ","), values)
-	log.Info("INSERT", zap.String("query", query))
-
-	log.Info("insert request", zap.String("collection", param.CollectionName), zap.Any("columns", param.Columns))
-	return m.bigqueryOp(ctx, func(bigqueryClient *bigquery.Client) error {
-		err := executeQuery(ctx, bigqueryClient, query)
-		return err
-	})
-
-	//return m.bigqueryOp(ctx, executeQuery(ctx context.Context, bigqueryClient *bigquery.Client, query string))
+	return nil
 }
 
 func (m *BigQueryDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
