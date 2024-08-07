@@ -23,6 +23,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"google.golang.org/api/iterator"
 	"strings"
@@ -48,14 +49,15 @@ type TargetClient struct {
 }
 
 type TargetConfig struct {
-	TargetDBType string
-	Address      string
-	Username     string
-	Password     string
-	ProjectId    string
-	APIKey       string
-	EnableTLS    bool
-	DialConfig   util.DialConfig
+	TargetDBType      string
+	Address           string
+	Username          string
+	Password          string
+	ProjectId         string
+	APIKey            string
+	EnableTLS         bool
+	ConnectionTimeout int
+	DialConfig        util.DialConfig
 }
 
 func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) {
@@ -81,6 +83,12 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 			log.Warn("fail to new target client", zap.String("address", config.ProjectId), zap.Error(err))
 			return nil, err
 		}
+	} else if strings.ToLower(targetClient.config.TargetDBType) == "elasticsearch" {
+		_, err := targetClient.GetElasticSearch(ctx, "")
+		if err != nil {
+			log.Warn("fail to new target client", zap.String("address", config.ProjectId), zap.Error(err))
+			return nil, err
+		}
 	}
 
 	log.Info("new target client", zap.String("address", config.Address), zap.String("targetDBType", config.TargetDBType), zap.Any("config", targetClient.config))
@@ -101,10 +109,15 @@ func (t *TargetClient) GetMilvus(ctx context.Context, databaseName string) (clie
 
 func (t *TargetClient) GetMySQL(ctx context.Context, databaseName string) (*sql.DB, error) {
 	apiKey := t.config.APIKey
+
 	if apiKey == "" {
 		apiKey = util.GetAPIKey(t.config.Username, t.config.Password)
+	} else {
+		t.config.Username = strings.Split(apiKey, ":")[0]
+		t.config.Password = strings.Split(apiKey, ":")[1]
 	}
-	mysqlClient, err := util.GetMySqlClientManager().GetMySQLClient(ctx, t.config.Address, apiKey, databaseName, t.config.EnableTLS, t.config.DialConfig)
+
+	mysqlClient, err := util.GetMySqlClientManager().GetMySQLClient(ctx, t.config.Address, t.config.Username, t.config.Password, databaseName, t.config.EnableTLS, t.config.ConnectionTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +130,14 @@ func (t *TargetClient) GetBigQuery(ctx context.Context) (*bigquery.Client, error
 		return nil, err
 	}
 	return bigqueryClient, nil
+}
+
+func (t *TargetClient) GetElasticSearch(ctx context.Context, index string) (*elasticsearch.Client, error) {
+	esClient, err := util.GetBigQueryClientManager().GetESClient(ctx, t.config.Address, t.config.Username, t.config.Password, index, t.config.EnableTLS, t.config.ConnectionTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return esClient, nil
 }
 
 func (t *TargetClient) GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error) {

@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -37,18 +36,20 @@ import (
 
 const (
 	MySQLClientResourceTyp = "mysql_client"
-	MySQLClientExpireTime  = 30 * time.Second
 	DefaultMySQLDbName     = "information_schema"
-	connectionTimeout      = 1
+	ConnectionTimeout      = 30
+	MySQLClientExpireTime  = ConnectionTimeout * time.Second
 )
 
-func (m *ClientResourceManager) newMySQLClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) resource.NewResourceFunc {
+func (m *ClientResourceManager) newMySQLClient(address, user, passwd, database string, enableTLS bool, connectionTimeout int) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
-
+		if connectionTimeout == 0 {
+			connectionTimeout = ConnectionTimeout
+		}
 		cfg := mysql.Config{
 			Addr:                 address,
-			User:                 strings.Split(apiKey, ":")[0],
-			Passwd:               strings.Split(apiKey, ":")[1],
+			User:                 user,
+			Passwd:               passwd,
 			Net:                  "tcp",
 			AllowNativePasswords: true,
 			Timeout:              time.Duration(connectionTimeout) * time.Second,
@@ -68,7 +69,7 @@ func (m *ClientResourceManager) newMySQLClient(ctx context.Context, address, api
 	}
 }
 
-func (m *ClientResourceManager) GetMySQLClient(ctx context.Context, address, apiKey, database string, enableTLS bool, dialConfig DialConfig) (*sql.DB, error) {
+func (m *ClientResourceManager) GetMySQLClient(ctx context.Context, address, user, passwd, database string, enableTLS bool, connectionTimeout int) (*sql.DB, error) {
 	if database == "" {
 		database = DefaultMySQLDbName
 	}
@@ -76,7 +77,7 @@ func (m *ClientResourceManager) GetMySQLClient(ctx context.Context, address, api
 	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("address", address))
 	res, err := m.manager.Get(MySQLClientResourceTyp,
 		getMySQLClientResourceName(address, database),
-		m.newMySQLClient(ctx, address, apiKey, database, enableTLS, dialConfig))
+		m.newMySQLClient(address, user, passwd, database, enableTLS, connectionTimeout))
 	if err != nil {
 		ctxLog.Error("fail to get mysql client", zap.Error(err))
 		return nil, err

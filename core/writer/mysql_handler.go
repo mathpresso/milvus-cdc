@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/go-sql-driver/mysql"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
+	"github.com/milvus-io/milvus/pkg/util/retry"
+	"github.com/zilliztech/milvus-cdc/core/util"
 	"strconv"
 	"strings"
 	"time"
@@ -30,16 +30,16 @@ type MySQLDataHandler struct {
 	password       string
 	connectTimeout int
 	db             *sql.DB
-	retryOptions   *backoff.ExponentialBackOff
+	retryOptions   []retry.Option
 	mysqlCli       *sql.DB
 }
 
 func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDataHandler, error) {
 	handler := &MySQLDataHandler{
 		connectTimeout: 5,
-		retryOptions:   backoff.NewExponentialBackOff(),
 	}
-	handler.retryOptions.MaxElapsedTime = 2 * time.Minute // 설정된 최대 재시도 시간
+
+	handler.retryOptions = util.GetRetryOptions(config.GetCommonConfig().Retry)
 
 	for _, option := range options {
 		option.Apply(handler)
@@ -48,63 +48,70 @@ func NewMySQLDataHandler(options ...config.Option[*MySQLDataHandler]) (*MySQLDat
 		return nil, errors.New("empty MySQL address")
 	}
 
-	var err error
+	if handler.username == "" || handler.password == "" {
+		return nil, errors.New("empty MySQL username or password")
+	}
 
-	err = handler.createDBConnection(handler.connectTimeout)
+	var err error
+	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
+	defer cancel()
+
+	err = handler.mysqlOp(timeoutContext, func(mysqlClient *sql.DB) error {
+		return nil
+	})
 	if err != nil {
-		log.Error("failed to create mysql connection", zap.Error(err))
+		log.Warn("fail to new the milvus client", zap.Error(err))
 		return nil, err
 	}
+	handler.retryOptions = util.GetRetryOptions(config.GetCommonConfig().Retry)
 
 	return handler, nil
 }
 
-func (m *MySQLDataHandler) createDBConnection(connectionTimeout int) (err error) {
-	cfg := mysql.Config{
-		Addr:                 m.address,
-		User:                 m.username,
-		Passwd:               m.password,
-		Net:                  "tcp",
-		AllowNativePasswords: true,
-		Timeout:              time.Duration(connectionTimeout) * time.Second,
-	}
-
-	m.db, err = sql.Open("mysql", cfg.FormatDSN())
-	if err != nil {
-		log.Info("failed to connect mysql database", zap.Any("info", cfg.FormatDSN()))
-		return fmt.Errorf("failed to connect mysql database : %v", err)
-	}
-
-	return nil
-}
-
-func (m *MySQLDataHandler) mysqlOp(ctx context.Context, query string, args ...interface{}) error {
-	retryFunc := func() error {
-		log.Info("executing mysql operation", zap.String("query", query), zap.Any("args", args))
-		_, err := m.db.Exec(query)
-		if err != nil {
-			log.Warn("failed to execute mysql operation", zap.Error(err))
+func (m *MySQLDataHandler) mysqlOp(ctx context.Context, f func(mysqlClient *sql.DB) error) error {
+	retryMySqlFunc := func(c *sql.DB) error {
+		// TODO Retryable and non-retryable errors should be distinguished
+		var err error
+		retryErr := retry.Do(ctx, func() error {
+			err = f(c)
+			return err
+		}, m.retryOptions...)
+		if retryErr != nil && err != nil {
+			return err
 		}
+		if retryErr != nil {
+			return retryErr
+		}
+		return nil
+	}
+
+	mysqlClient, err := util.GetMySqlClientManager().GetMySQLClient(ctx, m.address, m.username, m.password, "", false, m.connectTimeout)
+	if err != nil {
+		log.Warn("fail to get bigquery client", zap.Error(err))
 		return err
 	}
 
-	err := backoff.Retry(retryFunc, backoff.WithContext(m.retryOptions, ctx))
-	if err != nil {
-		log.Warn("retry operation failed", zap.Error(err))
-	}
-	return err
+	return retryMySqlFunc(mysqlClient)
 }
 
 func (m *MySQLDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	query := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s)", param.Schema.CollectionName, param.Schema.Fields)
 	log.Info("CREATE TABLE", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) DropCollection(ctx context.Context, param *api.DropCollectionParam) error {
 	query := fmt.Sprintf("DROP TABLE IF EXISTS %s", param.CollectionName)
 	log.Info("DROP TABLE", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) error {
@@ -219,7 +226,10 @@ func (m *MySQLDataHandler) Insert(ctx context.Context, param *api.InsertParam) e
 		param.Database, param.CollectionName, join(columns, ","), values)
 	//	log.Info("INSERT", zap.String("query", query))
 
-	return m.mysqlOp(ctx, query)
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func interfaceSliceToStringSlice(input []interface{}) []string {
@@ -240,9 +250,13 @@ func float32SliceToStringSlice(input []float32) []string {
 }
 
 func (m *MySQLDataHandler) Delete(ctx context.Context, param *api.DeleteParam) error {
-	query := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE `%s` = ?", param.Database, param.CollectionName, param.Column.Name)
+	query := fmt.Sprintf("DELETE FROM `%s`.`%s` WHERE `%s` = '%s'", param.Database, param.CollectionName, param.Column.Name, param.Column.FieldData())
 	log.Info("DELETE", zap.String("query", query))
-	return m.mysqlOp(ctx, query, param.Column.FieldData())
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) CreatePartition(ctx context.Context, param *api.CreatePartitionParam) error {
@@ -259,13 +273,21 @@ func (m *MySQLDataHandler) CreateIndex(ctx context.Context, param *api.CreateInd
 	query := fmt.Sprintf("CREATE INDEX %s ON `%s`.`%s` (`%s`)",
 		param.GetIndexName(), param.DbName, param.GetCollectionName(), param.GetFieldName())
 	log.Info("CREATE INDEX", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) DropIndex(ctx context.Context, param *api.DropIndexParam) error {
 	query := fmt.Sprintf("DROP INDEX %s ON %s", param.IndexName, param.CollectionName)
 	log.Info("DROP INDEX", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) LoadCollection(ctx context.Context, param *api.LoadCollectionParam) error {
@@ -295,13 +317,21 @@ func (m *MySQLDataHandler) Flush(ctx context.Context, param *api.FlushParam) err
 func (m *MySQLDataHandler) CreateDatabase(ctx context.Context, param *api.CreateDatabaseParam) error {
 	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", param.DbName)
 	log.Info("CREATE DATABASE", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) DropDatabase(ctx context.Context, param *api.DropDatabaseParam) error {
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", param.DbName)
 	log.Info("DROP DATABASE", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) unmarshalTsMsg(ctx context.Context, msgType commonpb.MsgType, dbName string, msgBytes []byte) error {
@@ -440,7 +470,6 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 			log.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
 			return err
 		}
-
 	}
 
 	return nil
@@ -449,7 +478,11 @@ func (m *MySQLDataHandler) ReplicateMessage(ctx context.Context, param *api.Repl
 func (m *MySQLDataHandler) DescribeCollection(ctx context.Context, param *api.DescribeCollectionParam) error {
 	query := fmt.Sprintf("DESCRIBE %s", param.Name)
 	log.Info("DESCRIBE", zap.String("query", query))
-	return m.mysqlOp(ctx, query)
+
+	return m.mysqlOp(ctx, func(mysqlClient *sql.DB) error {
+		_, err := mysqlClient.Exec(query)
+		return err
+	})
 }
 
 func (m *MySQLDataHandler) DescribeDatabase(ctx context.Context, param *api.DescribeDatabaseParam) error {

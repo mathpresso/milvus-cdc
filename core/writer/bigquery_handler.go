@@ -105,34 +105,6 @@ func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, f func(bigqueryCli
 	return retryBigQueryFunc(bigqueryClient)
 }
 
-/*
-	func (m *BigQueryDataHandler) bigqueryOp(ctx context.Context, query string, params map[string]interface{}) error {
-		retryFunc := func() error {
-
-			q := m.client.Query(query)
-
-			job, err := q.Run(ctx)
-			if err != nil {
-				log.Warn("failed to run query", zap.Error(err))
-				return err
-			}
-			status, err := job.Wait(ctx)
-			if err != nil {
-				return err
-			}
-			if err := status.Err(); err != nil {
-				return err
-			}
-			return nil
-		}
-
-		err := backoff.Retry(retryFunc, backoff.WithContext(m.retryOptions, ctx))
-		if err != nil {
-			log.Warn("retry operation failed", zap.Error(err))
-		}
-		return err
-	}
-*/
 func (m *BigQueryDataHandler) CreateCollection(ctx context.Context, param *api.CreateCollectionParam) error {
 	schema := bigquery.Schema{}
 	for _, field := range param.Schema.Fields {

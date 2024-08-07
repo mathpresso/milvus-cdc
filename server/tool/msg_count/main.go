@@ -43,7 +43,6 @@ import (
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/mq/common"
 	"github.com/milvus-io/milvus/pkg/mq/msgstream"
-	"github.com/milvus-io/milvus/pkg/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/util/tsoutil"
 
 	"github.com/zilliztech/milvus-cdc/core/config"
@@ -76,8 +75,8 @@ type PositionConfig struct {
 }
 
 func main() {
-	paramtable.Init()
-	paramtable.Get().Save(paramtable.Get().ServiceParam.MQCfg.EnablePursuitMode.Key, "false")
+	//	paramtable.Init()
+	//	paramtable.Get().Save(paramtable.Get().ServiceParam.MQCfg.EnablePursuitMode.Key, "false")
 	log.ReplaceGlobals(zap.NewNop(), &log.ZapProperties{
 		Core:   zapcore.NewNopCore(),
 		Syncer: zapcore.AddSync(ioutil.Discard),
