@@ -19,7 +19,7 @@ require (
 	github.com/zilliztech/milvus-cdc/core v0.0.1
 	go.etcd.io/etcd/client/v3 v3.5.15
 	go.uber.org/zap v1.21.0
-	google.golang.org/grpc v1.64.0
+	google.golang.org/grpc v1.64.1
 	sigs.k8s.io/yaml v1.3.0
 )
 
