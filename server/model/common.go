@@ -22,6 +22,7 @@ import "github.com/zilliztech/milvus-cdc/core/util"
 
 //go:generate easytags $GOFILE json,mapstructure
 type MilvusConnectParam struct {
+	TargetDBType string `json:"target_db_type" mapstructure:"target_db_type"`
 	// Deprecated: use uri instead
 	Host string `json:"host" mapstructure:"host"`
 	// Deprecated: use uri instead
@@ -37,7 +38,8 @@ type MilvusConnectParam struct {
 	DialConfig      util.DialConfig `json:"dial_config,omitempty" mapstructure:"dial_config,omitempty"`
 	IgnorePartition bool            `json:"ignore_partition" mapstructure:"ignore_partition"`
 	// ConnectTimeout unit: s
-	ConnectTimeout int `json:"connect_timeout" mapstructure:"connect_timeout"`
+	ConnectTimeout int    `json:"connect_timeout" mapstructure:"connect_timeout"`
+	ProjectId      string `json:"project_id" mapstructure:"project_id,omitempty"`
 }
 
 type CollectionInfo struct {

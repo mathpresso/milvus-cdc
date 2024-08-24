@@ -401,16 +401,26 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 	connectParam.Token = GetMilvusToken(connectParam)
 	connectParam.URI = GetMilvusURI(connectParam)
 
-	_, err := cdcwriter.NewMilvusDataHandler(
-		cdcwriter.URIOption(connectParam.URI),
-		cdcwriter.TokenOption(connectParam.Token),
-		cdcwriter.IgnorePartitionOption(connectParam.IgnorePartition),
-		cdcwriter.ConnectTimeoutOption(connectParam.ConnectTimeout),
-		cdcwriter.DialConfigOption(connectParam.DialConfig),
-	)
+	var err error
+	if req.MilvusConnectParam.TargetDBType == "milvus" {
+		_, err = cdcwriter.NewMilvusDataHandler(
+			cdcwriter.MilvusURIOption(connectParam.URI),
+			cdcwriter.MilvusTokenOption(connectParam.Token),
+			cdcwriter.MilvusIgnorePartitionOption(connectParam.IgnorePartition),
+			cdcwriter.MilvusConnectTimeoutOption(connectParam.ConnectTimeout),
+			cdcwriter.MilvusDialConfigOption(connectParam.DialConfig),
+		)
+	} else {
+		_, err = cdcwriter.NewDataHandler(
+			cdcwriter.URIOption(connectParam.URI),
+			cdcwriter.TokenOption(connectParam.Token),
+			cdcwriter.ConnectTimeoutOption(connectParam.ConnectTimeout),
+			cdcwriter.DialConfigOption(connectParam.DialConfig),
+		)
+	}
 	if err != nil {
-		log.Warn("fail to connect the milvus", zap.Any("connect_param", connectParam), zap.Error(err))
-		return errors.WithMessage(err, "fail to connect the milvus")
+		log.Warn(fmt.Sprintf("fail to connect the %s", req.MilvusConnectParam.TargetDBType), zap.Any("connect_param", connectParam), zap.Error(err))
+		return errors.WithMessage(err, fmt.Sprintf("fail to connect the %s", req.MilvusConnectParam.TargetDBType))
 	}
 	return nil
 }
@@ -578,11 +588,27 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	milvusConnectParam.Token = GetMilvusToken(milvusConnectParam)
 	milvusConnectParam.URI = GetMilvusURI(milvusConnectParam)
 	milvusAddress := milvusConnectParam.URI
-	milvusClient, err := cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
-		URI:        milvusAddress,
-		Token:      milvusConnectParam.Token,
-		DialConfig: milvusConnectParam.DialConfig,
-	})
+
+	var milvusClient api.TargetAPI
+	var err error
+
+	if strings.ToLower(milvusConnectParam.TargetDBType) == "milvus" {
+		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+			URI:          milvusAddress,
+			Token:        milvusConnectParam.Token,
+			DialConfig:   milvusConnectParam.DialConfig,
+			ProjectId:    milvusConnectParam.ProjectId,
+			TargetDBType: milvusConnectParam.TargetDBType,
+		})
+	} else {
+		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
+			URI:          milvusAddress,
+			Token:        milvusConnectParam.Token,
+			ProjectId:    milvusConnectParam.ProjectId,
+			TargetDBType: milvusConnectParam.TargetDBType,
+		})
+	}
+
 	cancelFunc()
 	if err != nil {
 		taskLog.Warn("fail to new target", zap.String("address", milvusAddress), zap.Error(err))
@@ -630,21 +656,41 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		return nil, servererror.NewClientError("fail to create replicate channel manager")
 	}
 	targetConfig := milvusConnectParam
-	dataHandler, err := cdcwriter.NewMilvusDataHandler(
-		cdcwriter.URIOption(targetConfig.URI),
-		cdcwriter.TokenOption(targetConfig.Token),
-		cdcwriter.IgnorePartitionOption(targetConfig.IgnorePartition),
-		cdcwriter.ConnectTimeoutOption(targetConfig.ConnectTimeout),
-		cdcwriter.DialConfigOption(targetConfig.DialConfig),
-	)
-	if err != nil {
-		taskLog.Warn("fail to new the data handler", zap.Error(err))
-		return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+	var writerObj api.Writer
+
+	if strings.ToLower(targetConfig.TargetDBType) == "milvus" {
+		dataHandler, err := cdcwriter.NewMilvusDataHandler(
+			cdcwriter.MilvusURIOption(targetConfig.URI),
+			cdcwriter.MilvusTokenOption(targetConfig.Token),
+			cdcwriter.MilvusIgnorePartitionOption(targetConfig.IgnorePartition),
+			cdcwriter.MilvusConnectTimeoutOption(targetConfig.ConnectTimeout),
+			cdcwriter.MilvusDialConfigOption(targetConfig.DialConfig),
+		)
+		if err != nil {
+			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+		}
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, config.WriterConfig{
+			MessageBufferSize: bufferSize,
+			Retry:             e.config.Retry,
+		}, metaOp.GetAllDroppedObj())
+	} else {
+		dataHandler, err := cdcwriter.NewDataHandler(
+			cdcwriter.URIOption(targetConfig.URI),
+			cdcwriter.TokenOption(targetConfig.Token),
+			cdcwriter.ConnectTimeoutOption(targetConfig.ConnectTimeout),
+			cdcwriter.DialConfigOption(targetConfig.DialConfig),
+		)
+		if err != nil {
+			taskLog.Warn("fail to new the data handler", zap.Error(err))
+			return nil, servererror.NewClientError("fail to new the data handler, task_id: ")
+		}
+		writerObj = cdcwriter.NewChannelWriter(dataHandler, config.WriterConfig{
+			MessageBufferSize: bufferSize,
+			Retry:             e.config.Retry,
+		}, metaOp.GetAllDroppedObj())
 	}
-	writerObj := cdcwriter.NewChannelWriter(dataHandler, config.WriterConfig{
-		MessageBufferSize: bufferSize,
-		Retry:             e.config.Retry,
-	}, metaOp.GetAllDroppedObj())
+
 	e.replicateEntityMap.Lock()
 	defer e.replicateEntityMap.Unlock()
 	entity, ok := e.replicateEntityMap.data[milvusAddress]

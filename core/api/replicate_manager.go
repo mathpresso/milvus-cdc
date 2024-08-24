@@ -35,7 +35,8 @@ type ChannelManager interface {
 	AddDroppedCollection(ids []int64)
 	AddDroppedPartition(ids []int64)
 
-	StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error
+	StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error
+
 	StopReadCollection(ctx context.Context, info *pb.CollectionInfo) error
 	AddPartition(ctx context.Context, collectionInfo *pb.CollectionInfo, partitionInfo *pb.PartitionInfo) error
 
@@ -103,7 +104,7 @@ func (d *DefaultChannelManager) AddDroppedPartition(ids []int64) {
 	log.Warn("AddDroppedPartition is not implemented, please check it")
 }
 
-func (d *DefaultChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error {
+func (d *DefaultChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error {
 	log.Warn("StartReadCollection is not implemented, please check it")
 	return nil
 }

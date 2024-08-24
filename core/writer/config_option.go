@@ -23,19 +23,19 @@ import (
 	"github.com/zilliztech/milvus-cdc/core/util"
 )
 
-func TokenOption(token string) config.Option[*MilvusDataHandler] {
+func MilvusTokenOption(token string) config.Option[*MilvusDataHandler] {
 	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
 		object.token = token
 	})
 }
 
-func URIOption(uri string) config.Option[*MilvusDataHandler] {
+func MilvusURIOption(uri string) config.Option[*MilvusDataHandler] {
 	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
 		object.uri = uri
 	})
 }
 
-func ConnectTimeoutOption(timeout int) config.Option[*MilvusDataHandler] {
+func MilvusConnectTimeoutOption(timeout int) config.Option[*MilvusDataHandler] {
 	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
 		if timeout > 0 {
 			object.connectTimeout = timeout
@@ -43,14 +43,46 @@ func ConnectTimeoutOption(timeout int) config.Option[*MilvusDataHandler] {
 	})
 }
 
-func IgnorePartitionOption(ignore bool) config.Option[*MilvusDataHandler] {
+func MilvusIgnorePartitionOption(ignore bool) config.Option[*MilvusDataHandler] {
 	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
 		object.ignorePartition = ignore
 	})
 }
 
-func DialConfigOption(dialConfig util.DialConfig) config.Option[*MilvusDataHandler] {
+func MilvusDialConfigOption(dialConfig util.DialConfig) config.Option[*MilvusDataHandler] {
 	return config.OptionFunc[*MilvusDataHandler](func(object *MilvusDataHandler) {
+		object.dialConfig = dialConfig
+	})
+}
+
+func TokenOption(token string) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.token = token
+	})
+}
+
+func URIOption(uri string) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.uri = uri
+	})
+}
+
+func ConnectTimeoutOption(timeout int) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		if timeout > 0 {
+			object.connectTimeout = timeout
+		}
+	})
+}
+
+func IgnorePartitionOption(ignore bool) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.ignorePartition = ignore
+	})
+}
+
+func DialConfigOption(dialConfig util.DialConfig) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
 		object.dialConfig = dialConfig
 	})
 }

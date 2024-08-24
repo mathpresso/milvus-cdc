@@ -20,6 +20,7 @@ package reader
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"sort"
@@ -159,7 +160,7 @@ func (r *replicateChannelManager) AddDroppedPartition(ids []int64) {
 	log.Info("has removed dropped partitions", zap.Int64s("ids", ids))
 }
 
-func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, seekPositions []*msgpb.MsgPosition) error {
+func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info *pb.CollectionInfo, targetDBType string, seekPositions []*msgpb.MsgPosition) error {
 	r.addCollectionLock.Lock()
 	*r.addCollectionCnt++
 	r.addCollectionLock.Unlock()
@@ -261,6 +262,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 	}
 
 	targetMsgCount := len(info.StartPositions)
+
 	barrier := NewBarrier(targetMsgCount, func(msgTs uint64, b *Barrier) {
 		select {
 		case <-b.CloseChan:
@@ -284,9 +286,16 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 
 	var successChannels []string
 	var channelHandlers []*replicateChannelHandler
-	err = ForeachChannel(info.VirtualChannelNames, targetInfo.VChannels, func(sourceVChannel, targetVChannel string) error {
-		sourcePChannel := funcutil.ToPhysicalChannel(sourceVChannel)
-		targetPChannel := funcutil.ToPhysicalChannel(targetVChannel)
+	toPhysicalChannel := func(vChannel string) string {
+		if strings.ToLower(vChannel) != "mysql" && strings.ToLower(vChannel) != "bigquery" {
+			return funcutil.ToPhysicalChannel(vChannel)
+		}
+
+		return strings.ToLower(vChannel)
+	}
+	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, targetInfo.DatabaseName, targetInfo.CollectionName, func(sourceVChannel, targetVChannel string) error {
+		sourcePChannel := toPhysicalChannel(sourceVChannel)
+		targetPChannel := toPhysicalChannel(targetVChannel)
 		channelHandler, err := r.startReadChannel(&model.SourceCollectionInfo{
 			PChannelName: sourcePChannel,
 			VChannelName: sourceVChannel,
@@ -340,12 +349,25 @@ func GetVChannelByPChannel(pChannel string, vChannels []string) string {
 	return ""
 }
 
-func ForeachChannel(sourcePChannels, targetPChannels []string, f func(sourcePChannel, targetPChannel string) error) error {
-	if len(sourcePChannels) != len(targetPChannels) {
-		return errors.New("the lengths of source and target channels are not equal")
+func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, targetDBName, targetCollectionName string, f func(sourcePChannel, targetPChannel string) error) error {
+	if targetDBType == "milvus" {
+		if len(sourcePChannels) != len(targetPChannels) {
+			return errors.New("the lengths of source and target channels are not equal")
+		}
 	}
+
 	sources := make([]string, len(sourcePChannels))
-	targets := make([]string, len(targetPChannels))
+	var targets []string
+
+	if targetDBType == "milvus" {
+		targets = make([]string, len(targetPChannels))
+	} else {
+		targets = make([]string, len(sourcePChannels))
+		for i := 0; i < len(sourcePChannels); i++ {
+			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-%s-%s-dml_%d_v0", targetDBName, targetCollectionName, targetDBType, i))
+		}
+	}
+
 	copy(sources, sourcePChannels)
 	copy(targets, targetPChannels)
 	sort.Strings(sources)

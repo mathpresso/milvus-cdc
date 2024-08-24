@@ -68,6 +68,7 @@ type CollectionReader struct {
 	quitOnce               sync.Once
 
 	retryOptions []retry.Option
+	targetDBType string
 }
 
 func NewCollectionReader(id string,
@@ -124,7 +125,7 @@ func (reader *CollectionReader) StartRead(ctx context.Context) {
 					Timestamp:   info.CreateTime,
 				})
 			}
-			if err := reader.channelManager.StartReadCollection(ctx, info, startPositions); err != nil {
+			if err := reader.channelManager.StartReadCollection(ctx, info, reader.targetDBType, startPositions); err != nil {
 				collectionLog.Warn("fail to start to replicate the collection data in the watch process", zap.Any("info", info), zap.Error(err))
 				reader.sendError(err)
 			}
@@ -251,7 +252,7 @@ func (reader *CollectionReader) StartRead(ctx context.Context) {
 				zap.String("name", info.Schema.Name),
 				zap.Int64("collection_id", info.ID),
 				zap.String("state", info.State.String()))
-			if err := reader.channelManager.StartReadCollection(ctx, info, seekPositions); err != nil {
+			if err := reader.channelManager.StartReadCollection(ctx, info, reader.targetDBType, seekPositions); err != nil {
 				readerLog.Warn("fail to start to replicate the collection data", zap.Any("collection", info), zap.Error(err))
 				reader.sendError(err)
 			}

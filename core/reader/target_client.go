@@ -45,10 +45,14 @@ type TargetClient struct {
 }
 
 type TargetConfig struct {
-	URI        string
-	Token      string
-	APIKey     string
-	DialConfig util.DialConfig
+	TargetDBType      string
+	URI               string
+	Token             string
+	ProjectId         string
+	APIKey            string
+	ConnectionTimeout int
+	DialConfig        util.DialConfig
+	TargetCDCAgentUri string
 }
 
 func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) {
