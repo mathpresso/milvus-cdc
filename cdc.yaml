@@ -13,7 +13,7 @@ metaStoreConfig:
 #    tlsKeyPath: deployment/cert/client.key # path to your key file
 #    tlsCACertPath: deployment/cert/ca.pem # path to your CACert file
 #    tlsMinVersion: 1.3
-  mysqlSourceUrl: root:root@tcp(qanda-misc-db01-dev.dev.qanda.internal:3306)/milvuscdc?charset=utf8
+  mysqlSourceUrl: cdctest:qwerty123456@tcp(qanda-misc-db01-dev.dev.qanda.internal:3306)/milvuscdc?charset=utf8
   rootPath: cdc-by-dev
 sourceConfig:
   etcd:
