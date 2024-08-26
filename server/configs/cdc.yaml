@@ -19,16 +19,16 @@ sourceConfig:
   etcd:
     address:
       - http://qanda-etcd.qanda-milvus:2379
-    rootPath: by-dev
+    rootPath: qanda
     metaSubPath: meta
     enableAuth: false
     username: root
     password: root123456
     enableTLS: false
-    tlsCertPath: deployment/cert/client.pem # path to your cert file
-    tlsKeyPath: deployment/cert/client.key # path to your key file
-    tlsCACertPath: deployment/cert/ca.pem # path to your CACert file
-    tlsMinVersion: 1.3
+    #tlsCertPath: deployment/cert/client.pem # path to your cert file
+    #tlsKeyPath: deployment/cert/client.key # path to your key file
+    #tlsCACertPath: deployment/cert/ca.pem # path to your CACert file
+    #tlsMinVersion: 1.3
   readChanLen: 10
   defaultPartitionName: _default
   replicateChan: by-dev-replicate-msg
@@ -42,6 +42,12 @@ sourceConfig:
   #    authParams: token:xxx
   kafka:
     address: qanda-kafka.qanda-milvus:9092
+    consumer:
+      # fetch.max.bytes: 104857600
+      # max.partition.fetch.bytes: 1048576000
+      bootstrap.servers: "qanda-kafka.qanda-milvus:9092"
+      receive.message.max.bytes: 2097152000 # fetch.max.bytes * 2
+      api.version.request: false
 maxNameLength: 256
 logLevel: info
 detectDeadLock: false
