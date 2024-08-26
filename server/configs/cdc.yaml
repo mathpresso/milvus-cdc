@@ -41,7 +41,7 @@ sourceConfig:
   #    authPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
   #    authParams: token:xxx
   kafka:
-    address: qanda-milvus.qanda-milvus:9092
+    address: qanda-kafka.qanda-milvus:9092
 maxNameLength: 256
 logLevel: info
 detectDeadLock: false

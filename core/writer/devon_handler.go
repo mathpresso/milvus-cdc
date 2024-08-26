@@ -27,23 +27,22 @@ import (
 type DataHandler struct {
 	api.DataHandler
 
-	agentHost       string           `json:"agent_host"`
-	agentPort       string           `json:"agent_port"`
-	token           string           `json:"token"`
-	uri             string           `json:"uri"`
-	address         string           `json:"address"`
-	database        string           `json:"database"`
-	collection      string           `json:"collection"`
-	username        string           `json:"user_name"`
-	password        string           `json:"password"`
-	enableTLS       bool             `json:"enable_tls"`
-	ignorePartition bool             // sometimes the has partition api is a deny api
-	connectTimeout  int              `json:"connect_timeout"`
-	projectId       string           `json:"project_id"`
-	msgType         commonpb.MsgType `json:"msg_type"`
-	msgBytes        [][]byte         `json:"msg_bytes"`
-	retryOptions    []retry.Option   `json:"retry_options"`
-	dialConfig      util.DialConfig  `json:"dial_config"`
+	agentHost       string          `json:"agent_host"`
+	agentPort       string          `json:"agent_port"`
+	token           string          `json:"token"`
+	uri             string          `json:"uri"`
+	address         string          `json:"address"`
+	database        string          `json:"database"`
+	collection      string          `json:"collection"`
+	username        string          `json:"user_name"`
+	password        string          `json:"password"`
+	enableTLS       bool            `json:"enable_tls"`
+	ignorePartition bool            // sometimes the has partition api is a deny api
+	connectTimeout  int             `json:"connect_timeout"`
+	projectId       string          `json:"project_id"`
+	msgBytes        [][]byte        `json:"msg_bytes"`
+	retryOptions    []retry.Option  `json:"retry_options"`
+	dialConfig      util.DialConfig `json:"dial_config"`
 }
 
 func NewDataHandler(options ...config.Option[*DataHandler]) (*DataHandler, error) {
@@ -113,7 +112,6 @@ func (m *DataHandler) ReplicaMessageHandler(ctx context.Context, msgType commonp
 		m.collection = strings.Split(param.ChannelName, "-")[1]
 	}
 
-	m.msgType = msgType
 	m.msgBytes = param.MsgsBytes
 
 	messageJSON, err := json.Marshal(m)
