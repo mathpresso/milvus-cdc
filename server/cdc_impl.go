@@ -676,6 +676,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 		}, metaOp.GetAllDroppedObj())
 	} else {
 		dataHandler, err := cdcwriter.NewDataHandler(
+			cdcwriter.TargetDBTypeOption(targetConfig.TargetDBType),
 			cdcwriter.URIOption(targetConfig.URI),
 			cdcwriter.TokenOption(targetConfig.Token),
 			cdcwriter.ConnectTimeoutOption(targetConfig.ConnectTimeout),

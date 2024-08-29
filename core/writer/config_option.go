@@ -67,6 +67,12 @@ func URIOption(uri string) config.Option[*DataHandler] {
 	})
 }
 
+func TargetDBTypeOption(targetDBType string) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.targetDBType = targetDBType
+	})
+}
+
 func ConnectTimeoutOption(timeout int) config.Option[*DataHandler] {
 	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
 		if timeout > 0 {

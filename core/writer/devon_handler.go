@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
@@ -27,6 +26,7 @@ import (
 type DataHandler struct {
 	api.DataHandler
 
+	targetDBType    string          `json:"target_db_type"`
 	agentHost       string          `json:"agent_host"`
 	agentPort       string          `json:"agent_port"`
 	token           string          `json:"token"`
@@ -52,10 +52,11 @@ func NewDataHandler(options ...config.Option[*DataHandler]) (*DataHandler, error
 	for _, option := range options {
 		option.Apply(handler)
 	}
-	if handler.address == "" {
-		return nil, errors.New("empty cdc agent address")
-	}
-
+	/*
+		if handler.address == "" {
+			return nil, errors.New("empty cdc agent address")
+		}
+	*/
 	var err error
 	timeoutContext, cancel := context.WithTimeout(context.Background(), time.Duration(handler.connectTimeout)*time.Second)
 	defer cancel()
@@ -106,7 +107,7 @@ func (m *DataHandler) DBOp(ctx context.Context, f func(db net.Conn) error) error
 	return retryDBAgentFunc(dbClient)
 }
 
-func (m *DataHandler) ReplicaMessageHandler(ctx context.Context, msgType commonpb.MsgType, param *api.ReplicateMessageParam) error {
+func (m *DataHandler) ReplicaMessageHandler(ctx context.Context, param *api.ReplicateMessageParam) error {
 	if param.ChannelName != "" {
 		m.database = strings.Split(param.ChannelName, "-")[0]
 		m.collection = strings.Split(param.ChannelName, "-")[1]
@@ -396,7 +397,7 @@ func (m *DataHandler) ReplicateMessage(ctx context.Context, param *api.Replicate
 			return err
 		}
 
-		err = m.ReplicaMessageHandler(ctx, header.GetBase().GetMsgType(), param)
+		err = m.ReplicaMessageHandler(ctx, param)
 		if err != nil {
 			log.Warn("failed to replca message handle", zap.Int("index", i), zap.Error(err))
 			return err
