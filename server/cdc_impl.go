@@ -190,9 +190,13 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 			log.Warn("fail to create cdc task", zap.Any("req", req), zap.Error(err))
 		}
 	}()
-	if err = e.validCreateRequest(req); err != nil {
-		return nil, err
+
+	if req.MilvusConnectParam.TargetDBType == "milvus" {
+		if err = e.validCreateRequest(req); err != nil {
+			return nil, err
+		}
 	}
+
 	milvusURI := GetMilvusURI(req.MilvusConnectParam)
 	newCollectionNames := lo.Map(req.CollectionInfos, func(t model.CollectionInfo, _ int) string {
 		return t.Name
