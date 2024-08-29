@@ -55,6 +55,18 @@ func MilvusDialConfigOption(dialConfig util.DialConfig) config.Option[*MilvusDat
 	})
 }
 
+func AgentHost(host string) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.agentHost = host
+	})
+}
+
+func AgentPort(port int) config.Option[*DataHandler] {
+	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+		object.agentPort = port
+	})
+}
+
 func TokenOption(token string) config.Option[*DataHandler] {
 	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
 		object.token = token
