@@ -22,6 +22,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"google.golang.org/grpc"
 	"net"
 	"reflect"
 	"sync"
@@ -62,7 +63,7 @@ func GetDBClientManager() *DBClientResourceManager {
 func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
 		uri := fmt.Sprintf("%s:%d", cdcAgentHost, cdcAgentPort)
-		conn, err := net.Dial("tcp", uri)
+		conn, err := grpc.Dial(uri, grpc.WithBlock())
 		if err != nil {
 			log.Warn("a Error connecting:", zap.String("uri", uri), zap.Error(err))
 			return nil, err
