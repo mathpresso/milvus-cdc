@@ -191,12 +191,12 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 		}
 	}()
 
-	if req.MilvusConnectParam.TargetDBType == "milvus" {
-		if err = e.validCreateRequest(req); err != nil {
-			return nil, err
-		}
+	log.Info("validating create request")
+	if err = e.validCreateRequest(req); err != nil {
+		return nil, err
 	}
 
+	log.Info("start to create cdc task")
 	milvusURI := GetMilvusURI(req.MilvusConnectParam)
 	newCollectionNames := lo.Map(req.CollectionInfos, func(t model.CollectionInfo, _ int) string {
 		return t.Name
@@ -228,6 +228,7 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 			}
 		}
 	}
+	log.Info("add new collection names to the collection names")
 	// release lock early to accept other requests
 	var excludeCollectionNames []string
 	if newCollectionNames[0] == cdcreader.AllCollection {
@@ -257,6 +258,7 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 		return nil, servererror.NewServerError(errors.Newf("the task num has reach the limit, %d", e.config.MaxTaskNum))
 	}
 
+	log.Info("start to create task info")
 	info := &meta.TaskInfo{
 		TaskID:                e.getUUID(),
 		MilvusConnectParam:    req.MilvusConnectParam,
@@ -335,7 +337,7 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 		}
 		req.RPCChannelInfo.Position = ""
 	}
-
+	log.Info("start to put the task info to etcd")
 	err = e.metaStoreFactory.GetTaskInfoMetaStore(ctx).Put(ctx, info, nil)
 	if err != nil {
 		revertCollectionNames()
@@ -355,7 +357,7 @@ func (e *MetaCDC) Create(req *request.CreateRequest) (resp *request.CreateRespon
 		}
 		return nil, err
 	}
-
+	log.Info("create task done")
 	return &request.CreateResponse{TaskID: info.TaskID}, nil
 }
 
