@@ -59,11 +59,12 @@ func GetDBClientManager() *DBClientResourceManager {
 	return dbClientManager
 }
 
-func (m *DBClientResourceManager) newDBClient(cdcAgentHost, cdcAgentPort, address, database, collection string, dialConfig DialConfig) resource.NewResourceFunc {
+func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
-		conn, err := net.Dial("tcp", cdcAgentHost+":"+cdcAgentPort)
+		uri := fmt.Sprintf("%s:%d", cdcAgentHost, cdcAgentPort)
+		conn, err := net.Dial("tcp", uri)
 		if err != nil {
-			log.Warn("Error connecting:", zap.Error(err))
+			log.Warn("Error connecting:", zap.String("uri", uri), zap.Error(err))
 			return nil, err
 		}
 		/*
@@ -86,7 +87,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost, cdcAgentPort, addres
 	}
 }
 
-func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost, cdcAgentPort, address, database, collection string, dialConfig DialConfig, connectionTimeout int) (net.Conn, error) {
+func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig, connectionTimeout int) (net.Conn, error) {
 	if database == "" {
 		database = DefaultDbName
 	}

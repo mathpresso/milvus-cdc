@@ -28,7 +28,7 @@ type DataHandler struct {
 
 	targetDBType    string          `json:"target_db_type"`
 	agentHost       string          `json:"agent_host"`
-	agentPort       string          `json:"agent_port"`
+	agentPort       int             `json:"agent_port"`
 	token           string          `json:"token"`
 	uri             string          `json:"uri"`
 	address         string          `json:"address"`
