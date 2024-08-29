@@ -412,6 +412,8 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		)
 	} else {
 		_, err = cdcwriter.NewDataHandler(
+			cdcwriter.AgentHost(connectParam.AgentHost),
+			cdcwriter.AgentPort(connectParam.AgentPort),
 			cdcwriter.URIOption(connectParam.URI),
 			cdcwriter.TokenOption(connectParam.Token),
 			cdcwriter.ConnectTimeoutOption(connectParam.ConnectTimeout),
