@@ -22,6 +22,8 @@ import "github.com/zilliztech/milvus-cdc/core/util"
 
 //go:generate easytags $GOFILE json,mapstructure
 type MilvusConnectParam struct {
+	AgentHost    string `json:"agent_host" mapstructure:"agent_host"`
+	AgentPort    int    `json:"agent_port" mapstructure:"agent_port"`
 	TargetDBType string `json:"target_db_type" mapstructure:"target_db_type"`
 	// Deprecated: use uri instead
 	Host string `json:"host" mapstructure:"host"`
