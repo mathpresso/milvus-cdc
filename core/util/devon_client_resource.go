@@ -64,7 +64,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 		uri := fmt.Sprintf("%s:%d", cdcAgentHost, cdcAgentPort)
 		conn, err := net.Dial("tcp", uri)
 		if err != nil {
-			log.Warn("Error connecting:", zap.String("uri", uri), zap.Error(err))
+			log.Warn("a Error connecting:", zap.String("uri", uri), zap.Error(err))
 			return nil, err
 		}
 		/*
