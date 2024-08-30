@@ -370,23 +370,26 @@ func (e *MetaCDC) getRPCChannelName(channelInfo model.ChannelInfo) string {
 
 func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 	connectParam := req.MilvusConnectParam
-	if connectParam.URI == "" && connectParam.Host == "" && connectParam.Port <= 0 {
-		return servererror.NewClientError("the milvus uri is empty")
+	if connectParam.TargetDBType != "bigquery" {
+		if connectParam.URI == "" && connectParam.Host == "" && connectParam.Port <= 0 {
+			return servererror.NewClientError("the milvus uri is empty")
+		}
+
+		if connectParam.URI == "" {
+			if connectParam.Host == "" {
+				return servererror.NewClientError("the milvus host is empty")
+			}
+			if connectParam.Port <= 0 {
+				return servererror.NewClientError("the milvus port is less or equal zero")
+			}
+		}
+
+		if (connectParam.Username != "" && connectParam.Password == "") ||
+			(connectParam.Username == "" && connectParam.Password != "") {
+			return servererror.NewClientError("cannot set only one of the milvus username and password")
+		}
 	}
 
-	if connectParam.URI == "" {
-		if connectParam.Host == "" {
-			return servererror.NewClientError("the milvus host is empty")
-		}
-		if connectParam.Port <= 0 {
-			return servererror.NewClientError("the milvus port is less or equal zero")
-		}
-	}
-
-	if (connectParam.Username != "" && connectParam.Password == "") ||
-		(connectParam.Username == "" && connectParam.Password != "") {
-		return servererror.NewClientError("cannot set only one of the milvus username and password")
-	}
 	if connectParam.ConnectTimeout < 0 {
 		return servererror.NewClientError("the milvus connect timeout is less zero")
 	}
@@ -404,8 +407,11 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 	if req.RPCChannelInfo.Name != "" && req.RPCChannelInfo.Name != e.config.SourceConfig.ReplicateChan {
 		return servererror.NewClientError("the rpc channel is invalid, the channel name should be the same as the source config")
 	}
-	connectParam.Token = GetMilvusToken(connectParam)
-	connectParam.URI = GetMilvusURI(connectParam)
+
+	if connectParam.TargetDBType != "bigquery" {
+		connectParam.Token = GetMilvusToken(connectParam)
+		connectParam.URI = GetMilvusURI(connectParam)
+	}
 
 	var err error
 	if req.MilvusConnectParam.TargetDBType == "milvus" {
