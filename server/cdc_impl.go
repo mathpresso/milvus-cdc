@@ -423,6 +423,7 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 			cdcwriter.MilvusDialConfigOption(connectParam.DialConfig),
 		)
 	} else {
+		log.Info("start to connect the target db")
 		_, err = cdcwriter.NewDataHandler(
 			cdcwriter.AgentHost(connectParam.AgentHost),
 			cdcwriter.AgentPort(connectParam.AgentPort),
