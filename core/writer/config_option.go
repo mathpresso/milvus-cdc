@@ -55,52 +55,52 @@ func MilvusDialConfigOption(dialConfig util.DialConfig) config.Option[*MilvusDat
 	})
 }
 
-func AgentHost(host string) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func AgentHost(host string) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.agentHost = host
 	})
 }
 
-func AgentPort(port int) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func AgentPort(port int) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.agentPort = port
 	})
 }
 
-func TokenOption(token string) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func TokenOption(token string) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.token = token
 	})
 }
 
-func URIOption(uri string) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func URIOption(uri string) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.uri = uri
 	})
 }
 
-func TargetDBTypeOption(targetDBType string) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func TargetDBTypeOption(targetDBType string) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.targetDBType = targetDBType
 	})
 }
 
-func ConnectTimeoutOption(timeout int) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func ConnectTimeoutOption(timeout int) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		if timeout > 0 {
 			object.connectTimeout = timeout
 		}
 	})
 }
 
-func IgnorePartitionOption(ignore bool) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func IgnorePartitionOption(ignore bool) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.ignorePartition = ignore
 	})
 }
 
-func DialConfigOption(dialConfig util.DialConfig) config.Option[*DataHandler] {
-	return config.OptionFunc[*DataHandler](func(object *DataHandler) {
+func DialConfigOption(dialConfig util.DialConfig) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
 		object.dialConfig = dialConfig
 	})
 }

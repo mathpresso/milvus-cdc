@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+option go_package = "grpc/receive_msg";
+
+package receive_msg;
+
+message RetryOption {
+  int32 max_retries = 1;
+  int32 initbackoff = 2;
+  int32 maxbackoff = 3;
+}
+
+message DialConfig {
+  string servername  = 1;
+  string serverpempath = 2;
+  string capempath     = 3;
+  string clientpempath = 4;
+  string clientkeypath = 5;
+}
+
+service HandleReceiveMsgService {
+  rpc SendReceiveMsg (ReplicaMsgRequest) returns (ReplicaMsgResponse);
+}
+
+message ReplicaMsgRequest {
+  string agent_host = 1;
+  string agent_port = 2;
+  string token = 3;
+  string uri = 4;
+  string address = 5;
+  string database = 6;
+  string collection = 7;
+  string username = 8;
+  string password = 9;
+  bool enable_tls = 10;
+  bool ignore_partition = 11;
+  int32 connect_timeout = 12;
+  string project_id = 13;
+  repeated bytes msg_bytes = 14;
+  repeated RetryOption retry_options = 15;
+  DialConfig dial_config = 16;
+  string target_db_type = 17;
+  string msg_type = 18;
+}
+
+message ReplicaMsgResponse {
+  string status = 1;
+  string message = 2;
+}

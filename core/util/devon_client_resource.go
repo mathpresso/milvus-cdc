@@ -23,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/grpc"
-	"net"
 	"reflect"
 	"sync"
 	"time"
@@ -81,6 +80,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 				return nil, err
 			}
 		*/
+
 		log.Info("Connected to server without sending any messages.", zap.String("cdcAgentHost", cdcAgentHost), zap.Int("cdcAgentPort", cdcAgentPort))
 		res := resource.NewSimpleResource(conn, DBClientResourceTyp, fmt.Sprintf("%s:%s:%s", address, database, collection), DBClientExpireTime, func() {
 			_ = conn.Close()
@@ -90,7 +90,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 	}
 }
 
-func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig, connectionTimeout int) (net.Conn, error) {
+func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig, connectionTimeout int) (*grpc.ClientConn, error) {
 	if database == "" {
 		database = DefaultDbName
 	}
@@ -102,7 +102,7 @@ func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost 
 		ctxLog.Error("fail to get db client", zap.Error(err))
 		return nil, err
 	}
-	if obj, ok := res.Get().(net.Conn); ok && obj != nil {
+	if obj, ok := res.Get().(*grpc.ClientConn); ok && obj != nil {
 		return obj, nil
 	}
 	ctxLog.Warn("invalid resource object", zap.Any("obj", reflect.TypeOf(res.Get())))
