@@ -106,7 +106,7 @@ func (m *Server) DBOp(ctx context.Context, f func(db *grpc.ClientConn) error) er
 		return nil
 	}
 
-	dbClient, err := util.GetDBClientManager().GetDBClient(ctx, m.agentHost, m.agentPort, m.address, m.database, m.collection, util.DialConfig{}, m.connectTimeout)
+	dbClient, err := util.GetDBClientManager().GetDBClient(ctx, m.agentHost, m.agentPort, m.uri, m.database, m.collection, util.DialConfig{}, m.connectTimeout)
 	if err != nil {
 		log.Warn("fail to get cdc agent client", zap.Error(err))
 		return err

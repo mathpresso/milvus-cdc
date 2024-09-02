@@ -59,7 +59,7 @@ func GetDBClientManager() *DBClientResourceManager {
 	return dbClientManager
 }
 
-func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig) resource.NewResourceFunc {
+func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort int, uri, database, collection string, dialConfig DialConfig) resource.NewResourceFunc {
 	return func() (resource.Resource, error) {
 		uri := fmt.Sprintf("%s:%d", cdcAgentHost, cdcAgentPort)
 		log.Info("Connecting to server.", zap.String("uri", uri))
@@ -82,7 +82,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 		*/
 
 		log.Info("Connected to server without sending any messages.", zap.String("cdcAgentHost", cdcAgentHost), zap.Int("cdcAgentPort", cdcAgentPort))
-		res := resource.NewSimpleResource(conn, DBClientResourceTyp, fmt.Sprintf("%s:%s:%s", address, database, collection), DBClientExpireTime, func() {
+		res := resource.NewSimpleResource(conn, DBClientResourceTyp, fmt.Sprintf("%s:%s:%s", uri, database, collection), DBClientExpireTime, func() {
 			_ = conn.Close()
 		})
 
@@ -90,14 +90,14 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 	}
 }
 
-func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost string, cdcAgentPort int, address, database, collection string, dialConfig DialConfig, connectionTimeout int) (*grpc.ClientConn, error) {
+func (m *DBClientResourceManager) GetDBClient(ctx context.Context, cdcAgentHost string, cdcAgentPort int, uri, database, collection string, dialConfig DialConfig, connectionTimeout int) (*grpc.ClientConn, error) {
 	if database == "" {
 		database = DefaultDbName
 	}
-	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("address", address))
+	ctxLog := log.Ctx(ctx).With(zap.String("database", database), zap.String("address", uri))
 	res, err := m.manager.Get(DBClientResourceTyp,
-		getDBClientResourceName(address, database, collection),
-		m.newDBClient(cdcAgentHost, cdcAgentPort, address, database, collection, dialConfig))
+		getDBClientResourceName(uri, database, collection),
+		m.newDBClient(cdcAgentHost, cdcAgentPort, uri, database, collection, dialConfig))
 	if err != nil {
 		ctxLog.Error("fail to get db client", zap.Error(err))
 		return nil, err
