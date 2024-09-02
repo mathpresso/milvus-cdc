@@ -81,7 +81,7 @@ func (m *DBClientResourceManager) newDBClient(cdcAgentHost string, cdcAgentPort 
 			}
 		*/
 
-		log.Info("Connected to server without sending any messages.", zap.String("cdcAgentHost", cdcAgentHost), zap.Int("cdcAgentPort", cdcAgentPort))
+		log.Info("Connected to server without sending any messages.", zap.String("cdcAgentHost", cdcAgentHost), zap.Int("cdcAgentPort", cdcAgentPort), zap.String("uri", uri))
 		res := resource.NewSimpleResource(conn, DBClientResourceTyp, fmt.Sprintf("%s:%s:%s", uri, database, collection), DBClientExpireTime, func() {
 			_ = conn.Close()
 		})
