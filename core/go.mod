@@ -10,7 +10,7 @@ require (
 	github.com/milvus-io/milvus/pkg v0.0.2-0.20240712081735-d8e68cbb973d
 	github.com/prometheus/client_golang v1.14.0
 	github.com/samber/lo v1.27.0
-	github.com/sasha-s/go-deadlock v0.3.2-0.20240530143741-ed6f7f6d979c
+	github.com/sasha-s/go-deadlock v0.3.5
 	github.com/stretchr/testify v1.8.4
 	go.etcd.io/etcd/client/v3 v3.5.5
 	go.uber.org/zap v1.21.0
@@ -85,7 +85,7 @@ require (
 	github.com/opencontainers/runtime-spec v1.0.2 // indirect
 	github.com/panjf2000/ants/v2 v2.7.2 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
-	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
+	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/pierrec/lz4 v2.5.2+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

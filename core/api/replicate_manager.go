@@ -48,7 +48,7 @@ type ChannelManager interface {
 }
 
 type TargetAPI interface {
-	GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error)
+	GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error)
 	GetPartitionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error)
 	GetDatabaseName(ctx context.Context, collectionName, databaseName string) (string, error)
 }
@@ -143,7 +143,7 @@ type DefaultTargetAPI struct{}
 
 var _ TargetAPI = (*DefaultTargetAPI)(nil)
 
-func (d *DefaultTargetAPI) GetCollectionInfo(ctx context.Context, collectionName, databaseName string) (*model.CollectionInfo, error) {
+func (d *DefaultTargetAPI) GetCollectionInfo(ctx context.Context, targetDBType, collectionName, databaseName string) (*model.CollectionInfo, error) {
 	log.Warn("GetCollectionInfo is not implemented, please check it")
 	return nil, nil
 }
