@@ -116,8 +116,8 @@ func (m *Server) DBOp(ctx context.Context, f func(db *grpc.ClientConn) error) er
 }
 
 func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.ReplicateMessageParam) error {
-	//	var cnt int
-	//	timeTickMsg := false
+	var cnt int
+	timeTickMsg := false
 
 	if param.ChannelName != "" {
 		m.database = strings.Split(param.ChannelName, "-")[0]
@@ -138,19 +138,19 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 			return err
 		}
 
-		//		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
-		//			timeTickMsg = true
-		//		}
-		//		cnt = i
-	}
-	/*
-		if cnt == 0 && timeTickMsg {
-			log.Info("no message to handle")
-			return nil
-		} else {
-			log.Info("start message to handle")
+		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
+			timeTickMsg = true
 		}
-	*/
+		cnt = i
+	}
+
+	if cnt == 0 && timeTickMsg {
+		log.Info("no message to handle")
+		return nil
+	} else {
+		log.Info("start message to handle")
+	}
+
 	return m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
