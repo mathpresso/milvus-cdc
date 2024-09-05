@@ -147,6 +147,8 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	if cnt == 0 && timeTickMsg {
 		log.Info("no message to handle")
 		return nil
+	} else {
+		log.Info("start message to handle")
 	}
 
 	return m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
