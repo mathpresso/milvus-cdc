@@ -117,7 +117,7 @@ func (m *Server) DBOp(ctx context.Context, f func(db *grpc.ClientConn) error) er
 
 func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.ReplicateMessageParam) error {
 	var cnt int
-	timeTickMsg := true
+	timeTickMsg := false
 
 	if param.ChannelName != "" {
 		m.database = strings.Split(param.ChannelName, "-")[0]
@@ -139,7 +139,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 		}
 
 		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
-			timeTickMsg = false
+			timeTickMsg = true
 		}
 		cnt = i
 	}
