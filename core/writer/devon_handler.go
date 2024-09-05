@@ -145,7 +145,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	}
 
 	if cnt == 0 && timeTickMsg {
-		log.Info("no message to handle")
+		log.Info("no message to handle", zap.Any("param", param))
 		return nil
 	} else {
 		log.Info("start message to handle")
