@@ -583,15 +583,16 @@ func (m *Server) DescribeDatabase(ctx context.Context, param *api.DescribeDataba
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "describe_database",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "describe_database",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -610,26 +611,4 @@ func (m *Server) DescribeDatabase(ctx context.Context, param *api.DescribeDataba
 
 		return nil
 	})
-}
-
-func join(elems []string, sep string) string {
-	switch len(elems) {
-	case 0:
-		return ""
-	case 1:
-		return elems[0]
-	}
-	n := len(sep) * (len(elems) - 1)
-	for i := 0; i < len(elems); i++ {
-		n += len(elems[i])
-	}
-
-	var b strings.Builder
-	b.Grow(n)
-	b.WriteString(elems[0])
-	for _, s := range elems[1:] {
-		b.WriteString(sep)
-		b.WriteString(s)
-	}
-	return b.String()
 }
