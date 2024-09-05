@@ -116,12 +116,37 @@ func (m *Server) DBOp(ctx context.Context, f func(db *grpc.ClientConn) error) er
 }
 
 func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.ReplicateMessageParam) error {
+	var cnt int
+	timeTickMsg := true
+
 	if param.ChannelName != "" {
 		m.database = strings.Split(param.ChannelName, "-")[0]
 		m.collection = strings.Split(param.ChannelName, "-")[1]
 	}
 
 	m.msgBytes = param.MsgsBytes
+	for i, msgBytes := range m.msgBytes {
+		header := &commonpb.MsgHeader{}
+		err := proto.Unmarshal(msgBytes, header)
+		if err != nil {
+			log.Error("failed to unmarshal msg header", zap.Int("index", i), zap.Error(err))
+			return err
+		}
+
+		if header.GetBase() == nil {
+			log.Error("msg header base is nil", zap.Int("index", i))
+			return err
+		}
+
+		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
+			timeTickMsg = false
+		}
+		cnt = i
+	}
+
+	if cnt == 0 && timeTickMsg {
+		return nil
+	}
 
 	return m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
