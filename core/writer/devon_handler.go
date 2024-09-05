@@ -127,15 +127,16 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "replication",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "replication",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -172,15 +173,16 @@ func (m *Server) CreateCollection(ctx context.Context, param *api.CreateCollecti
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "create_collection",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "create_collection",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -217,15 +219,16 @@ func (m *Server) DropCollection(ctx context.Context, param *api.DropCollectionPa
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "drop_collection",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "drop_collection",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -270,15 +273,16 @@ func (m *Server) Insert(ctx context.Context, param *api.InsertParam) (err error)
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "insert",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "insert",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -327,15 +331,16 @@ func (m *Server) Delete(ctx context.Context, param *api.DeleteParam) error {
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "delete",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "delete",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -372,15 +377,16 @@ func (m *Server) CreateIndex(ctx context.Context, param *api.CreateIndexParam) e
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "create_index",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "create_index",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -422,15 +428,16 @@ func (m *Server) CreateDatabase(ctx context.Context, param *api.CreateDatabasePa
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "create_database",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "create_database",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -467,15 +474,16 @@ func (m *Server) DropDatabase(ctx context.Context, param *api.DropDatabaseParam)
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "drop_database",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "drop_database",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
@@ -538,15 +546,16 @@ func (m *Server) DescribeCollection(ctx context.Context, param *api.DescribeColl
 		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
-			MsgType:    "describe_collection",
-			Token:      m.token,
-			Uri:        m.uri,
-			Username:   m.username,
-			Password:   m.password,
-			ProjectId:  m.projectId,
-			Database:   m.database,
-			Collection: m.collection,
-			MsgBytes:   m.msgBytes,
+			MsgType:      "describe_collection",
+			TargetDbType: m.targetDBType,
+			Token:        m.token,
+			Uri:          m.uri,
+			Username:     m.username,
+			Password:     m.password,
+			ProjectId:    m.projectId,
+			Database:     m.database,
+			Collection:   m.collection,
+			MsgBytes:     m.msgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
