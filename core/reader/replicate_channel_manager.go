@@ -350,6 +350,7 @@ func GetVChannelByPChannel(pChannel string, vChannels []string) string {
 }
 
 func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, targetDBName, targetCollectionName string, f func(sourcePChannel, targetPChannel string) error) error {
+	log.Info("target db type", zap.String("kind", targetDBType))
 	if targetDBType == "milvus" {
 		if len(sourcePChannels) != len(targetPChannels) {
 			return errors.New("the lengths of source and target channels are not equal")

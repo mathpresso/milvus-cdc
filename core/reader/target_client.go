@@ -91,6 +91,7 @@ func (t *TargetClient) GetCollectionInfo(ctx context.Context, targetDBType, coll
 		log.Warn("fail to get database name", zap.Error(err))
 		return nil, err
 	}
+	log.Info("GetCollectionInfo target db type", zap.String("kind", targetDBType))
 
 	collectionInfo := &model.CollectionInfo{}
 	if strings.ToLower(targetDBType) == "milvus" {
@@ -235,7 +236,7 @@ func (t *TargetClient) GetDatabaseName(ctx context.Context, collectionName, data
 
 	var databaseNames []entity.Database
 	var err error
-
+	log.Info("target db type GetDatabaseName", zap.String("kind", t.config.TargetDBType))
 	if t.config.TargetDBType == "milvus" {
 		err = t.milvusOp(ctx, "", func(milvus client.Client) error {
 			databaseNames, err = milvus.ListDatabases(ctx)

@@ -412,7 +412,7 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		connectParam.Token = GetMilvusToken(connectParam)
 		connectParam.URI = GetMilvusURI(connectParam)
 	}
-
+	log.Info("GetCollectionInfo target db type validCreateRequest", zap.String("kind", req.MilvusConnectParam.TargetDBType))
 	var err error
 	if req.MilvusConnectParam.TargetDBType == "milvus" {
 		_, err = cdcwriter.NewMilvusDataHandler(
@@ -606,7 +606,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 
 	var milvusClient api.TargetAPI
 	var err error
-
+	log.Info("GetCollectionInfo target db type newReplicateEntity", zap.String("kind", milvusConnectParam.TargetDBType))
 	if strings.ToLower(milvusConnectParam.TargetDBType) == "milvus" {
 		milvusClient, err = cdcreader.NewTarget(timeoutCtx, cdcreader.TargetConfig{
 			URI:          milvusAddress,
@@ -672,7 +672,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 	}
 	targetConfig := milvusConnectParam
 	var writerObj api.Writer
-
+	log.Info("GetCollectionInfo target db type newReplicateEntity", zap.String("kind", targetConfig.TargetDBType))
 	if strings.ToLower(targetConfig.TargetDBType) == "milvus" {
 		dataHandler, err := cdcwriter.NewMilvusDataHandler(
 			cdcwriter.MilvusURIOption(targetConfig.URI),
