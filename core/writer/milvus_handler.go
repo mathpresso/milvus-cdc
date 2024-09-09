@@ -82,6 +82,7 @@ func (m *MilvusDataHandler) milvusOp(ctx context.Context, database string, f fun
 		var err error
 		var c client.Client
 		retryErr := retry.Do(ctx, func() error {
+			log.Info("get milvus client", zap.String("uri", m.uri), zap.String("token", m.token), zap.String("database", database))
 			c, err = util.GetMilvusClientManager().GetMilvusClient(ctx, m.uri, m.token, database, m.dialConfig)
 			if err != nil {
 				log.Warn("fail to get milvus client", zap.Error(err))
