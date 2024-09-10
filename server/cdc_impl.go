@@ -539,7 +539,7 @@ func (e *MetaCDC) startInternal(info *meta.TaskInfo, ignoreUpdateState bool) err
 		channelSeekPosition[taskPosition.CollectionID] = collectionSeekPosition
 	}
 
-	collectionReader, err := cdcreader.NewCollectionReader(info.TaskID,
+	collectionReader, err := cdcreader.NewCollectionReader(info.TaskID, info.MilvusConnectParam.TargetDBType,
 		replicateEntity.channelManager, replicateEntity.metaOp,
 		channelSeekPosition, GetShouldReadFunc(info),
 		config.ReaderConfig{

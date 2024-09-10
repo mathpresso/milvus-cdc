@@ -71,7 +71,7 @@ type CollectionReader struct {
 	targetDBType string
 }
 
-func NewCollectionReader(id string,
+func NewCollectionReader(id, targetDBType string,
 	channelManager api.ChannelManager, metaOp api.MetaOp,
 	seekPosition map[int64]map[string]*msgpb.MsgPosition,
 	shouldReadFunc ShouldReadFunc,
@@ -85,6 +85,7 @@ func NewCollectionReader(id string,
 		shouldReadFunc:       shouldReadFunc,
 		errChan:              make(chan error),
 		retryOptions:         util.GetRetryOptions(readerConfig.Retry),
+		targetDBType:         targetDBType,
 	}
 	for _, collectionPositions := range seekPosition {
 		for channel, msgPosition := range collectionPositions {
