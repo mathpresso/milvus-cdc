@@ -70,7 +70,6 @@ func NewTarget(ctx context.Context, config TargetConfig) (api.TargetAPI, error) 
 }
 
 func (t *TargetClient) milvusOp(ctx context.Context, database string, f func(milvus client.Client) error) error {
-	log.Info("get milvus client", zap.String("uri", t.config.URI), zap.String("Token", t.config.Token), zap.String("database", database))
 	c, err := util.GetMilvusClientManager().GetMilvusClient(ctx, t.config.URI, t.config.Token, database, t.config.DialConfig)
 	if err != nil {
 		log.Warn("fail to get milvus client", zap.Error(err))
