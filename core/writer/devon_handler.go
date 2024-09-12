@@ -168,7 +168,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
-		otherCtx, cancel := context.WithTimeout(ctx, time.Second)
+		otherCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 		defer cancel()
 
 		res, err := c.SendReceiveMsg(otherCtx, req)
