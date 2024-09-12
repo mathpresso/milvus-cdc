@@ -26,16 +26,16 @@ type MilvusConnectParam struct {
 	AgentPort    int    `json:"agent_port" mapstructure:"agent_port"`
 	TargetDBType string `json:"target_db_type" mapstructure:"target_db_type"`
 	// Deprecated: use uri instead
-	Host string `json:"host" mapstructure:"host"`
+	Host string `json:"host" mapstructure:"host,omitempty"`
 	// Deprecated: use uri instead
-	Port int `json:"port" mapstructure:"port"`
+	Port int `json:"port" mapstructure:"port,omitempty"`
 	// Deprecated: use uri instead
 	EnableTLS bool `json:"enable_tls" mapstructure:"enable_tls"`
 	// Deprecated: use token instead
 	Username string `json:"username,omitempty" mapstructure:"username,omitempty"`
 	// Deprecated: use token instead
 	Password        string          `json:"password,omitempty" mapstructure:"password,omitempty"`
-	URI             string          `json:"uri" mapstructure:"uri"`
+	URI             string          `json:"uri" mapstructure:"uri,omitempty"`
 	Token           string          `json:"token,omitempty" mapstructure:"token,omitempty"`
 	DialConfig      util.DialConfig `json:"dial_config,omitempty" mapstructure:"dial_config,omitempty"`
 	IgnorePartition bool            `json:"ignore_partition" mapstructure:"ignore_partition"`
