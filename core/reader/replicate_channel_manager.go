@@ -366,6 +366,7 @@ func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []stri
 		targets = make([]string, len(sourcePChannels))
 		for i := 0; i < len(sourcePChannels); i++ {
 			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-%s-%s-dml_%d_v0", targetDBName, targetCollectionName, targetDBType, i))
+			log.Info("create target pchannel", zap.String("pchannel", targetPChannels[i]))
 		}
 	}
 
@@ -1117,24 +1118,27 @@ func (r *replicateChannelHandler) getPartitionID(sourceCollectionID, sourceParti
 		return id, nil
 	}
 
+	targetDBType := strings.Split(r.targetPChannel, "-")[2]
 	// Sleep for a short time to avoid invalid requests
-	time.Sleep(500 * time.Millisecond)
-	err := retry.Do(r.replicateCtx, func() error {
-		log.Warn("wait partition info", zap.Int64("collection_id", info.CollectionID), zap.String("partition_name", name))
-		id = r.updateTargetPartitionInfo(sourceCollectionID, info.CollectionName, name)
-		if id != 0 {
-			return nil
+	if targetDBType == "milvus" {
+		time.Sleep(500 * time.Millisecond)
+		err := retry.Do(r.replicateCtx, func() error {
+			log.Warn("wait partition info", zap.Int64("collection_id", info.CollectionID), zap.String("partition_name", name))
+			id = r.updateTargetPartitionInfo(sourceCollectionID, info.CollectionName, name)
+			if id != 0 {
+				return nil
+			}
+			if r.isDroppedCollection(sourceCollectionID) ||
+				r.isDroppedPartition(sourcePartitionID) {
+				id = -1
+				return nil
+			}
+			return errors.Newf("not found the partition [%s]", name)
+		}, r.retryOptions...)
+		if err != nil {
+			log.Warn("fail to find the partition id", zap.Int64("source_collection", sourceCollectionID), zap.Any("target_collection", info.CollectionID), zap.String("partition_name", name))
+			return 0, err
 		}
-		if r.isDroppedCollection(sourceCollectionID) ||
-			r.isDroppedPartition(sourcePartitionID) {
-			id = -1
-			return nil
-		}
-		return errors.Newf("not found the partition [%s]", name)
-	}, r.retryOptions...)
-	if err != nil {
-		log.Warn("fail to find the partition id", zap.Int64("source_collection", sourceCollectionID), zap.Any("target_collection", info.CollectionID), zap.String("partition_name", name))
-		return 0, err
 	}
 	return id, nil
 }
