@@ -63,7 +63,7 @@ func (m *DBClientResourceManager) newDBClient(ctx context.Context, cdcAgentHost 
 	return func() (resource.Resource, error) {
 		uri := fmt.Sprintf("%s:%d", cdcAgentHost, cdcAgentPort)
 		log.Info("Connecting to server.", zap.String("uri", uri))
-		conn, err := grpc.DialContext(ctx, uri, grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.DialContext(ctx, uri, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*64))) // 최대 메시지 크기 64MB로 설정
 		if err != nil {
 			log.Warn("a Error connecting:", zap.String("uri", uri), zap.Error(err))
 			return nil, err
