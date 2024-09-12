@@ -145,7 +145,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	}
 
 	if cnt == 0 && timeTickMsg {
-		log.Info("no message to handle", zap.Any("param", param))
+		log.Info("no message to handle - time tick message")
 		return nil
 	} else {
 		log.Info("start message to handle")
@@ -533,26 +533,12 @@ func (m *Server) DropDatabase(ctx context.Context, param *api.DropDatabaseParam)
 }
 
 func (m *DataHandler) ReplicateMessage(ctx context.Context, param *api.ReplicateMessageParam) error {
-	for i, msgBytes := range param.MsgsBytes {
-		header := &commonpb.MsgHeader{}
-		err := proto.Unmarshal(msgBytes, header)
-		if err != nil {
-			log.Warn("failed to unmarshal msg header", zap.Int("index", i), zap.Error(err))
-			return err
-		}
-
-		if header.GetBase() == nil {
-			log.Warn("msg header base is nil", zap.Int("index", i), zap.Error(err))
-			return err
-		}
-
-		var s Server
-		s.DataHandler = *m
-		err = s.ReplicaMessageHandler(ctx, param)
-		if err != nil {
-			log.Warn("failed to replca message handle", zap.Int("index", i), zap.Error(err))
-			return err
-		}
+	var s Server
+	s.DataHandler = *m
+	err := s.ReplicaMessageHandler(ctx, param)
+	if err != nil {
+		log.Warn("failed to replca message handle", zap.Error(err))
+		return err
 	}
 
 	return nil
