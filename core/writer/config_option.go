@@ -104,3 +104,9 @@ func DialConfigOption(dialConfig util.DialConfig) config.Option[*Server] {
 		object.dialConfig = dialConfig
 	})
 }
+
+func ProjectIdOption(projectId string) config.Option[*Server] {
+	return config.OptionFunc[*Server](func(object *Server) {
+		object.projectId = projectId
+	})
+}

@@ -431,6 +431,7 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 			cdcwriter.TokenOption(connectParam.Token),
 			cdcwriter.ConnectTimeoutOption(connectParam.ConnectTimeout),
 			cdcwriter.DialConfigOption(connectParam.DialConfig),
+			cdcwriter.ProjectIdOption(connectParam.ProjectId),
 		)
 	}
 	if err != nil {
