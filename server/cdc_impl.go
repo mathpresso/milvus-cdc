@@ -699,6 +699,7 @@ func (e *MetaCDC) newReplicateEntity(info *meta.TaskInfo) (*ReplicateEntity, err
 			cdcwriter.TokenOption(targetConfig.Token),
 			cdcwriter.ConnectTimeoutOption(targetConfig.ConnectTimeout),
 			cdcwriter.DialConfigOption(targetConfig.DialConfig),
+			cdcwriter.ProjectIdOption(targetConfig.ProjectId),
 		)
 		if err != nil {
 			taskLog.Warn("fail to new the data handler", zap.Error(err))
