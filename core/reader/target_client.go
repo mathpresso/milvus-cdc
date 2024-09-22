@@ -183,7 +183,7 @@ func (t *TargetClient) GetOtherCollectionInfo(databaseName, collectionName strin
 	tableInfo.ProjectId = t.config.ProjectId
 
 	urlInfo := strings.Split(t.config.TargetCDCAgentUri, ":")[0]
-	urlInfo, _ = url.JoinPath(urlInfo, "collection", "info")
+	urlInfo, _ = url.JoinPath(urlInfo, "milvus", "collectioninfo")
 
 	log.Info("target cdc agent", zap.String("uri", urlInfo))
 	pbytes, _ := json.Marshal(tableInfo)
