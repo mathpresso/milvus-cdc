@@ -412,6 +412,7 @@ func (e *MetaCDC) validCreateRequest(req *request.CreateRequest) error {
 		connectParam.Token = GetMilvusToken(connectParam)
 		connectParam.URI = GetMilvusURI(connectParam)
 	}
+
 	log.Info("GetCollectionInfo target db type validCreateRequest", zap.String("kind", req.MilvusConnectParam.TargetDBType))
 	var err error
 	if req.MilvusConnectParam.TargetDBType == "milvus" {

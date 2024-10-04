@@ -30,17 +30,18 @@ message ReplicaMsgRequest {
   string address = 5;
   string database = 6;
   string collection = 7;
-  string username = 8;
-  string password = 9;
-  bool enable_tls = 10;
-  bool ignore_partition = 11;
-  int32 connect_timeout = 12;
-  string project_id = 13;
-  repeated bytes msg_bytes = 14;
-  repeated RetryOption retry_options = 15;
-  DialConfig dial_config = 16;
-  string target_db_type = 17;
-  string msg_type = 18;
+  string pkcolumn = 8;
+  string username = 9;
+  string password = 10;
+  bool enable_tls = 11;
+  bool ignore_partition = 12;
+  int32 connect_timeout = 13;
+  string project_id = 14;
+  repeated bytes msg_bytes = 15;
+  repeated RetryOption retry_options = 16;
+  DialConfig dial_config = 17;
+  string target_db_type = 18;
+  string msg_type = 19;
 }
 
 message ReplicaMsgResponse {

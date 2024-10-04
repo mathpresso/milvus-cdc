@@ -178,6 +178,15 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 
 	sourceDBInfo := r.metaOp.GetDatabaseInfoForCollection(ctx, info.ID)
 
+	var pkColumn string
+
+	for _, field := range info.Schema.Fields {
+		if field.IsPrimaryKey {
+			pkColumn = field.Name
+			break
+		}
+	}
+
 	var err error
 	retryErr := retry.Do(ctx, func() error {
 		_, err = r.targetClient.GetCollectionInfo(ctx, targetDBType, info.Schema.GetName(), sourceDBInfo.Name)
@@ -293,7 +302,7 @@ func (r *replicateChannelManager) StartReadCollection(ctx context.Context, info 
 
 		return strings.ToLower(vChannel)
 	}
-	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, targetInfo.DatabaseName, targetInfo.CollectionName, func(sourceVChannel, targetVChannel string) error {
+	err = ForeachChannel(targetDBType, info.VirtualChannelNames, targetInfo.VChannels, targetInfo.DatabaseName, targetInfo.CollectionName, pkColumn, func(sourceVChannel, targetVChannel string) error {
 		sourcePChannel := toPhysicalChannel(sourceVChannel)
 		targetPChannel := toPhysicalChannel(targetVChannel)
 		channelHandler, err := r.startReadChannel(&model.SourceCollectionInfo{
@@ -349,7 +358,7 @@ func GetVChannelByPChannel(pChannel string, vChannels []string) string {
 	return ""
 }
 
-func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, targetDBName, targetCollectionName string, f func(sourcePChannel, targetPChannel string) error) error {
+func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []string, targetDBName, targetCollectionName, pkColumn string, f func(sourcePChannel, targetPChannel string) error) error {
 	log.Info("target db type", zap.String("kind", targetDBType))
 	if targetDBType == "milvus" {
 		if len(sourcePChannels) != len(targetPChannels) {
@@ -365,7 +374,7 @@ func ForeachChannel(targetDBType string, sourcePChannels, targetPChannels []stri
 	} else {
 		targets = make([]string, len(sourcePChannels))
 		for i := 0; i < len(sourcePChannels); i++ {
-			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-%s-%s-dml_%d_v0", targetDBName, targetCollectionName, targetDBType, i))
+			targetPChannels = append(targetPChannels, fmt.Sprintf("%s-%s-%s-%s-dml_%d_v0", targetDBName, targetCollectionName, pkColumn, targetDBType, i))
 			log.Info("create target pchannel", zap.String("pchannel", targetPChannels[i]))
 		}
 	}
@@ -1118,7 +1127,7 @@ func (r *replicateChannelHandler) getPartitionID(sourceCollectionID, sourceParti
 		return id, nil
 	}
 
-	targetDBType := strings.Split(r.targetPChannel, "-")[2]
+	targetDBType := strings.Split(r.targetPChannel, "-")[3]
 	// Sleep for a short time to avoid invalid requests
 	if targetDBType == "milvus" {
 		time.Sleep(500 * time.Millisecond)

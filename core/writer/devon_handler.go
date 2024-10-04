@@ -34,6 +34,7 @@ type DataHandler struct {
 	address         string          `json:"address"`
 	database        string          `json:"database"`
 	collection      string          `json:"collection"`
+	pkcolumn        string          `json:"pk_column"`
 	username        string          `json:"user_name"`
 	password        string          `json:"password"`
 	enableTLS       bool            `json:"enable_tls"`
@@ -122,6 +123,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	if param.ChannelName != "" {
 		m.database = strings.Split(param.ChannelName, "-")[0]
 		m.collection = strings.Split(param.ChannelName, "-")[1]
+		m.pkcolumn = strings.Split(param.ChannelName, "-")[2]
 	}
 
 	m.msgBytes = param.MsgsBytes
@@ -164,6 +166,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 			ProjectId:    m.projectId,
 			Database:     m.database,
 			Collection:   m.collection,
+			Pkcolumn:     m.pkcolumn,
 			MsgBytes:     m.msgBytes,
 		}
 
