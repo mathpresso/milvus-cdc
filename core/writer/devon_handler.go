@@ -143,6 +143,9 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
 			timeTickMsg = true
 		}
+
+		log.Info("msg header", zap.Any("msg type", header.GetBase().GetMsgType()))
+
 		cnt = i
 	}
 
