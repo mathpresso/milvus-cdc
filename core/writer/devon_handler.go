@@ -3,6 +3,7 @@ package writer
 import (
 	"bytes"
 	"context"
+
 	"encoding/json"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -117,7 +118,6 @@ func (m *Server) DBOp(ctx context.Context, f func(db *grpc.ClientConn) error) er
 }
 
 func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.ReplicateMessageParam) error {
-	var cnt int
 	timeTickMsg := false
 
 	if param.ChannelName != "" {
@@ -127,6 +127,12 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	}
 
 	m.msgBytes = param.MsgsBytes
+	var bufMsgBytes [][]byte
+	var befMsgType commonpb.MsgType
+	befMsgType = commonpb.MsgType_Undefined
+
+	var c pb.HandleReceiveMsgServiceClient
+
 	for i, msgBytes := range m.msgBytes {
 		header := &commonpb.MsgHeader{}
 		err := proto.Unmarshal(msgBytes, header)
@@ -142,14 +148,66 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 
 		if commonpb.MsgType_TimeTick == header.GetBase().GetMsgType() {
 			timeTickMsg = true
+		} else {
+			if (befMsgType == commonpb.MsgType_Undefined || befMsgType == header.GetBase().GetMsgType()) &&
+				(commonpb.MsgType_Insert == header.GetBase().GetMsgType() || commonpb.MsgType_Delete == header.GetBase().GetMsgType() || commonpb.MsgType_Upsert == header.GetBase().GetMsgType()) {
+				bufMsgBytes = append(bufMsgBytes, msgBytes)
+			} else if (befMsgType != commonpb.MsgType_Undefined && befMsgType != header.GetBase().GetMsgType()) &&
+				(commonpb.MsgType_Insert == header.GetBase().GetMsgType() || commonpb.MsgType_Delete == header.GetBase().GetMsgType() || commonpb.MsgType_Upsert == header.GetBase().GetMsgType()) {
+				err = m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
+					log.Info("start message to handle")
+
+					c = pb.NewHandleReceiveMsgServiceClient(dbClient)
+					//  receive_msg.HandleReceiveMsgServiceClient
+					req := &pb.ReplicaMsgRequest{
+						MsgType:      "replication",
+						TargetDbType: m.targetDBType,
+						Token:        m.token,
+						Uri:          m.uri,
+						Username:     m.username,
+						Password:     m.password,
+						ProjectId:    m.projectId,
+						Database:     m.database,
+						Collection:   m.collection,
+						Pkcolumn:     m.pkcolumn,
+						MsgBytes:     bufMsgBytes,
+					}
+
+					// 다른 서버로 gRPC 메서드 호출
+					otherCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+					defer cancel()
+
+					res, err := c.SendReceiveMsg(otherCtx, req)
+					if err != nil {
+						log.Warn("Failed to send message to other server", zap.Error(err))
+						return err
+					}
+
+					if res.Status == "failed" {
+						return fmt.Errorf("failed to process message: %s", res.Message)
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					log.Error("failed to send message to devon server", zap.Error(err))
+					return err
+				}
+
+				bufMsgBytes = nil
+				bufMsgBytes = append(bufMsgBytes, msgBytes)
+				befMsgType = header.GetBase().GetMsgType()
+			} else {
+				log.Warn("unsupported msg type for devon replica", zap.String("msg type", header.GetBase().GetMsgType().String()))
+			}
 		}
 
-		log.Info("msg header", zap.Any("msg type", header.GetBase().GetMsgType()))
+		log.Info("msg header", zap.String("msg type", header.GetBase().GetMsgType().String()))
 
-		cnt = i
 	}
 
-	if cnt == 0 && timeTickMsg {
+	if len(bufMsgBytes) == 0 && timeTickMsg {
 		log.Info("no message to handle - time tick message")
 		return nil
 	} else {
@@ -157,7 +215,10 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 	}
 
 	return m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
-		c := pb.NewHandleReceiveMsgServiceClient(dbClient)
+		if c == nil {
+			c = pb.NewHandleReceiveMsgServiceClient(dbClient)
+		}
+
 		//  receive_msg.HandleReceiveMsgServiceClient
 		req := &pb.ReplicaMsgRequest{
 			MsgType:      "replication",
@@ -170,7 +231,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 			Database:     m.database,
 			Collection:   m.collection,
 			Pkcolumn:     m.pkcolumn,
-			MsgBytes:     m.msgBytes,
+			MsgBytes:     bufMsgBytes,
 		}
 
 		// 다른 서버로 gRPC 메서드 호출
