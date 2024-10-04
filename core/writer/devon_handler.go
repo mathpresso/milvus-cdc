@@ -152,6 +152,7 @@ func (m *Server) ReplicaMessageHandler(ctx context.Context, param *api.Replicate
 			if (befMsgType == commonpb.MsgType_Undefined || befMsgType == header.GetBase().GetMsgType()) &&
 				(commonpb.MsgType_Insert == header.GetBase().GetMsgType() || commonpb.MsgType_Delete == header.GetBase().GetMsgType() || commonpb.MsgType_Upsert == header.GetBase().GetMsgType()) {
 				bufMsgBytes = append(bufMsgBytes, msgBytes)
+				befMsgType = header.GetBase().GetMsgType()
 			} else if (befMsgType != commonpb.MsgType_Undefined && befMsgType != header.GetBase().GetMsgType()) &&
 				(commonpb.MsgType_Insert == header.GetBase().GetMsgType() || commonpb.MsgType_Delete == header.GetBase().GetMsgType() || commonpb.MsgType_Upsert == header.GetBase().GetMsgType()) {
 				err = m.DBOp(ctx, func(dbClient *grpc.ClientConn) error {
